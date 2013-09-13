@@ -1,0 +1,9 @@
+{
+  "name": "dusty-yard",
+  "version": "0.0.0",
+  "dependencies": {
+    "d3": "~3.3.3",
+    "queue-async": "~1.0.4",
+    "topojson": "~1.4.0"
+  }
+}

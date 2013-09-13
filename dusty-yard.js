@@ -3,7 +3,7 @@ queue()
   .defer(d3.csv, "booths.csv")
   .await(ready);
 
-function ready(error, sa1, booths) {
+function ready(error, sa1) {
   console.log(sa1);
-  console.log(booths);
+  //console.log(booths);
 }

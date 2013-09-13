@@ -11,7 +11,8 @@ fs.readFile("sources/pollingbooths.csv", "utf8", function(error, text) {
 
   var filteredRows = [];
   dsv.csv.parse(text).forEach(function(row) {
-    if (row.Latitude !== "" && row.Longitude !== "") {
+    if (row.Latitude !== "" && row.Longitude !== ""
+        && row.Latitude != 0 && row.Longitude != 0) {
       filteredRows.push({
         PollingPlaceID: row.PollingPlaceID,
         Latitude: row.Latitude,

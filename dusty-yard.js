@@ -3,12 +3,12 @@ queue()
   .defer(d3.csv, "booths.csv")
   .await(ready);
 
-function ready(error, sa1, booths) {
+function ready(error, sa1, boothdata) {
   var path = d3.geo.path()
       .projection(null);
 
   console.log(sa1);
-  console.log(booths);
+  console.log(boothdata);
 
   var centroids = {};
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
@@ -17,27 +17,74 @@ function ready(error, sa1, booths) {
     centroids[feature.id] = path.centroid(feature);
   });
 
-  var boothLocations = {};
-  booths.forEach(function(booth) {
-    boothLocations[+booth.PollingPlaceID] = [+booth.Longitude, +booth.Latitude];
+  boothdata.forEach(function(booth) {
+    booth.Longitude = +booth.Longitude;
+    booth.Latitude = +booth.Latitude;
   });
 
-  var locationHashes = {};
-  d3.keys(boothLocations).forEach(function(key) {
-    var booth = boothLocations[key];
-    var hash = booth.join("|");
-    locationHashes[hash] = locationHashes[hash] || [];
-    locationHashes[hash].push(key);
+  var quadtree = d3.geom.quadtree()
+    .x(function(d) { return d.Longitude; })
+    .y(function(d) { return d.Latitude; });
+
+  var nodes = quadtree(boothdata);
+
+  var closeRoot = [];
+  var normalPoints = [];
+
+  var threshold = 0.001;
+  nodes.visit(function(point, x1, y1, x2, y2) {
+    if (x2 - x1 <= threshold || y2 - y1 <= threshold) {
+      closeRoot.push(point);
+      return true;
+    } else if (point.x !== null && point.y !== null) {
+      normalPoints.push(point);
+    }
   });
 
-  var filteredLocations = d3.keys(locationHashes).map(function(d) { return d.split("|"); }).map(function(d) { return [+d[0], +d[1]]; });
-  console.log(filteredLocations);
+  closeRoot.forEach(function(d) {
+    d.visit = function(f) {
+      d3_geom_quadtreeVisit(f, d, d.x1, d.y1, d.x2, d.y2);
+    };
+  });
 
-  var voronoi = d3.geom.voronoi();
+  var closePoints = [];
+  closeRoot.forEach(function(point) {
+    var cluster = [];
+    point.visit(function(d) {
+      if (d.x !== null && d.y !== null) {
+        cluster.push(d.point);
+      }
+    });
+    closePoints.push(cluster);
+  });
 
-  //console.log(d3.values(centroids)[30]);
-  //console.log(d3.values(boothLocations)[30]);
-  //window.b = d3.values(boothLocations);
-  console.log(d3.geom.voronoi(filteredLocations));
+  console.log(closeRoot);
+  console.log(closePoints);
+  console.log(normalPoints);
+
+  console.log("totals");
+  console.log(boothdata.length);
+  console.log(normalPoints.length);
+  console.log(closePoints.reduce(function(total, d) { return total += d.length; }, 0));
+
+//  window.booths = [];
+//  boothdata.forEach(function(booth) {
+//    window.booths.push([+booth.Longitude, +booth.Latitude]);
+//    //window.booths[+booth.PollingPlaceID] = [+booth.Longitude, +booth.Latitude];
+//  });
+
 
 }
+
+function d3_geom_quadtreeVisit(f, node, x1, y1, x2, y2) {
+  if (!f(node, x1, y1, x2, y2)) {
+    var sx = (x1 + x2) * .5,
+    sy = (y1 + y2) * .5,
+    children = node.nodes;
+    if (children[0]) d3_geom_quadtreeVisit(f, children[0], x1, y1, sx, sy);
+    if (children[1]) d3_geom_quadtreeVisit(f, children[1], sx, y1, x2, sy);
+    if (children[2]) d3_geom_quadtreeVisit(f, children[2], x1, sy, sx, y2);
+    if (children[3]) d3_geom_quadtreeVisit(f, children[3], sx, sy, x2, y2);
+  }
+}
+

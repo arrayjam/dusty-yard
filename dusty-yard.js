@@ -20,88 +20,36 @@ function ready(error, sa1, boothdata) {
   boothdata.forEach(function(booth) {
     booth.Longitude = +booth.Longitude;
     booth.Latitude = +booth.Latitude;
+    booth.cluster = [];
   });
 
-  var quadtree = d3.geom.quadtree()
-    .x(function(d) { return d.Longitude; })
-    .y(function(d) { return d.Latitude; });
-
-  var nodes = quadtree(boothdata);
-
-  var closeRoot = [];
-  var clusteredIDs = d3.set();
-
-  var threshold = 0.001;
-  nodes.visit(function(point, x1, y1, x2, y2) {
-    if (x2 - x1 <= threshold || y2 - y1 <= threshold) {
-      closeRoot.push(point);
-      return true;
+  var clustered = [],
+  threshold = 0.0001;
+  boothdata.forEach(function(booth) {
+    var c = false;
+    clustered.forEach(function(clustered) {
+      if (Math.abs(booth.Longitude - clustered.Longitude) <= threshold &&
+          Math.abs(booth.Latitude - clustered.Latitude) <= threshold) {
+        c = true;
+        clustered.cluster.push(booth);
+      }
+    });
+    if (!c) {
+      clustered.push(booth);
     }
   });
 
-  closeRoot.forEach(function(d) {
-    d.visit = function(f) {
-      d3_geom_quadtreeVisit(f, d, d.x1, d.y1, d.x2, d.y2);
-    };
-  });
-
-  var closePoints = [];
-  closeRoot.forEach(function(point) {
-    var cluster = [];
-    point.visit(function(d) {
-      if (d.x !== null && d.y !== null) {
-        cluster.push(d.point);
-      }
-    });
-    closePoints.push(cluster);
-  });
-  window.c = closePoints;
-
-  var filteredIDs = d3.set();
-  closePoints.forEach(function(d) {
-    d.slice(1).forEach(function(d) {
-      filteredIDs.add(d.PollingPlaceID);
-    });
-  });
-
-  window.b = boothdata.filter(function(d) { return !filteredIDs.has(d.PollingPlaceID); });
-
-  var voronoi = d3.geom.voronoi()
+  var polygons = d3.geom.voronoi()
     .x(function(d) { return d.Longitude; })
     .y(function(d) { return d.Latitude; })
-    (window.b);
+    (clustered);
 
-  console.log(voronoi);
+  console.log(polygons);
 
-  console.log(centroids);
+  window.c = clustered;
 
-  console.log(closeRoot);
-  console.log(closePoints);
-  console.log("normalPoints", normalPoints);
 
-  console.log("totals");
-  console.log(boothdata.length);
-  console.log(normalPoints.length);
-  console.log(closePoints.reduce(function(total, d) { return total += d.length; }, 0));
-
-//  window.booths = [];
-//  boothdata.forEach(function(booth) {
-//    window.booths.push([+booth.Longitude, +booth.Latitude]);
 //    //window.booths[+booth.PollingPlaceID] = [+booth.Longitude, +booth.Latitude];
-//  });
 
-
-}
-
-function d3_geom_quadtreeVisit(f, node, x1, y1, x2, y2) {
-  if (!f(node, x1, y1, x2, y2)) {
-    var sx = (x1 + x2) * .5,
-    sy = (y1 + y2) * .5,
-    children = node.nodes;
-    if (children[0]) d3_geom_quadtreeVisit(f, children[0], x1, y1, sx, sy);
-    if (children[1]) d3_geom_quadtreeVisit(f, children[1], sx, y1, x2, sy);
-    if (children[2]) d3_geom_quadtreeVisit(f, children[2], x1, sy, sx, y2);
-    if (children[3]) d3_geom_quadtreeVisit(f, children[3], sx, sy, x2, y2);
-  }
 }
 

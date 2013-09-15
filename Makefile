@@ -7,7 +7,7 @@ sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 	touch $@
 
 sa1.json: sources/SA1_2011_AUST.shp
-	$(TOPOJSON) --id-property SA1_7DIGIT --simplify-proportion 0.8 -o $@ -- sa1=$^
+	$(TOPOJSON) --id-property SA1_7DIGIT --simplify-proportion 0.01 -o $@ -- sa1=$^
 
 sources/pollingbooths.csv:
 	curl http://vtr.aec.gov.au/Downloads/GeneralPollingPlacesDownload-17496.csv | tail --lines=+2 > $@

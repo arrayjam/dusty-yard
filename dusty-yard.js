@@ -10,11 +10,11 @@ function ready(error, sa1, boothdata) {
   console.log(sa1);
   console.log(boothdata);
 
-  var centroids = {};
+  var centroids = [];
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
 
   geo.forEach(function(feature) {
-    centroids[feature.id] = path.centroid(feature);
+    centroids.push({id: feature.id, coords: path.centroid(feature)});
   });
 
   boothdata.forEach(function(booth) {
@@ -29,15 +29,13 @@ function ready(error, sa1, boothdata) {
   var nodes = quadtree(boothdata);
 
   var closeRoot = [];
-  var normalPoints = [];
+  var clusteredIDs = d3.set();
 
   var threshold = 0.001;
   nodes.visit(function(point, x1, y1, x2, y2) {
     if (x2 - x1 <= threshold || y2 - y1 <= threshold) {
       closeRoot.push(point);
       return true;
-    } else if (point.x !== null && point.y !== null) {
-      normalPoints.push(point);
     }
   });
 
@@ -57,10 +55,29 @@ function ready(error, sa1, boothdata) {
     });
     closePoints.push(cluster);
   });
+  window.c = closePoints;
+
+  var filteredIDs = d3.set();
+  closePoints.forEach(function(d) {
+    d.slice(1).forEach(function(d) {
+      filteredIDs.add(d.PollingPlaceID);
+    });
+  });
+
+  window.b = boothdata.filter(function(d) { return !filteredIDs.has(d.PollingPlaceID); });
+
+  var voronoi = d3.geom.voronoi()
+    .x(function(d) { return d.Longitude; })
+    .y(function(d) { return d.Latitude; })
+    (window.b);
+
+  console.log(voronoi);
+
+  console.log(centroids);
 
   console.log(closeRoot);
   console.log(closePoints);
-  console.log(normalPoints);
+  console.log("normalPoints", normalPoints);
 
   console.log("totals");
   console.log(boothdata.length);

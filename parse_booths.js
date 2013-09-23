@@ -21,7 +21,7 @@ fs.readFile("sources/pollingbooths.csv", "utf8", function(error, text) {
     }
   });
 
-  fs.writeFile("booths.csv", dsv.csv.format(filteredRows), function(err) {
+  fs.writeFile("data/booths.csv", dsv.csv.format(filteredRows), function(err) {
     if(err) {
       console.log(err);
     } else {

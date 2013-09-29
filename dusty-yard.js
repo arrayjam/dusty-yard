@@ -1,7 +1,8 @@
 var d3 = require("d3"),
   fs = require("fs"),
   queue = require("queue-async"),
-  topojson = require("topojson");
+  topojson = require("topojson"),
+  sphereKnn = require("sphere-knn");
 
 queue()
   .defer(fs.readFile, __dirname + "/data/sa1.json", { encoding: "utf-8" })
@@ -9,6 +10,10 @@ queue()
   .await(ready);
 
 // voronoi -> clustered booths + long/lap point + sa1 codes
+//booth.projected = projection([booth.Longitude, booth.Latitude]);
+
+// In meters
+var clusteringThreshold = 500;
 
 function ready(error, sa1, boothdata) {
   sa1 = JSON.parse(sa1);
@@ -16,33 +21,29 @@ function ready(error, sa1, boothdata) {
 
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
 
-  boothdata.forEach(function(booth) {
-    booth.Longitude = +booth.Longitude;
-    booth.Latitude = +booth.Latitude;
-    booth.PollingPlaceID = +booth.PollingPlaceID;
-    booth.cluster = [];
-    booth.sa1 = [];
-    //booth.projected = projection([booth.Longitude, booth.Latitude]);
+  boothdata = boothdata.map(function(booth) {
+    return {
+      longitude: +booth.Longitude,
+      latitude: +booth.Latitude,
+      id: +booth.PollingPlaceID
+    };
   });
 
-  var clustered = [],
-  threshold = 0.0007;
-  boothdata.forEach(function(booth) {
-    var c = false;
-    for (var i = 0; i < clustered.length; i++) {
-      var cluster = clustered[i];
-      if (Math.abs(booth.Longitude - cluster.Longitude) <= threshold &&
-          Math.abs(booth.Latitude - cluster.Latitude) <= threshold) {
-        c = true;
-      cluster.cluster.push(booth);
-      break;
-      }
-    }
-    if (!c) {
-      clustered.push(booth);
-    }
+  var unclustered = d3.map();
+  boothdata.forEach(function(d) { unclustered.set(d.id, d); });
+
+  var lookup = sphereKnn(unclustered.values());
+
+  var i = 0;
+  var clustered = d3.map();
+  unclustered.forEach(function(id, booth) {
+    i++;
+    var points = lookup(booth.latitude, booth.longitude, Infinity, clusteringThreshold);
+    clustered.set(id, points);
+    points.forEach(function(point) { unclustered.remove(point.id); });
   });
 
+  return;
   var polygons = d3.geom.voronoi()
   .x(function(d) { return d.Longitude; })
   .y(function(d) { return d.Latitude; })

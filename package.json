@@ -1,0 +1,25 @@
+{
+  "name": "dusty-yard",
+  "version": "0.0.0",
+  "description": "",
+  "main": "dusty-yard.js",
+  "dependencies": {
+    "d3": "~3.3.5",
+    "dsv": "~0.0.2",
+    "queue-async": "~1.0.4",
+    "topojson": "~1.4.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/arrayjam/dusty-yard.git"
+  },
+  "author": "",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/arrayjam/dusty-yard/issues"
+  }
+}

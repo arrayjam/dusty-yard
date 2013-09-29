@@ -47,7 +47,7 @@ function ready(error, sa1, boothdata) {
     clustered.set(id, {
       position: booth.position,
       id: booth.id,
-      cluster: points,
+      booths: points,
       tracts: []
     });
   });
@@ -81,8 +81,10 @@ function ready(error, sa1, boothdata) {
     var yExtent = d3.extent(result.voronoi, function(d) { return d[1]; });
 
     search(centroidQuadtree, xExtent[0], yExtent[0], xExtent[1], yExtent[1], function(point) {
-      console.log("Booth " + result.id + " matches tract " + point.id);
-      result.tracts.push(point.id);
+      if (pointInPolygon(point.position, result.voronoi)) {
+        console.log("Booth " + result.id + " matches tract " + point.id);
+        result.tracts.push(point.id);
+      }
     });
   });
 

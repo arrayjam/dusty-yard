@@ -32,39 +32,62 @@ function ready(error, sa1, boothdata) {
   var unclustered = d3.map();
   boothdata.forEach(function(d) { unclustered.set(d.id, d); });
 
+  // sphereKnn expects accessors named latitude and longitude
   var lookup = sphereKnn(unclustered.values());
 
-  var i = 0;
   var clustered = d3.map();
   unclustered.forEach(function(id, booth) {
-    i++;
     var points = lookup(booth.latitude, booth.longitude, Infinity, clusteringThreshold);
-    clustered.set(id, points);
-    points.forEach(function(point) { unclustered.remove(point.id); });
-  });
+    points.forEach(function(point) {
+      point.position = [point.longitude, point.latitude];
+      delete point.longitude, delete point.latitude;
+      unclustered.remove(point.id);
+    });
 
-  return;
-  var polygons = d3.geom.voronoi()
-  .x(function(d) { return d.Longitude; })
-  .y(function(d) { return d.Latitude; })
-  (clustered);
-
-  var centroids = d3.map();
-  geo.forEach(function(d) {
-    centroids.set(d.id, d3.geo.centroid(d));
-  });
-
-  var result = d3.map();
-  polygons.forEach(function(polygon) {
-    var id = polygon.point.PollingPlaceID;
-    centroids.forEach(function(centroid_id, centroid) {
-      if (pointInPolygon(centroid, polygon)) {
-        var sa1s = result.get(id) || [];
-        sa1s.push(centroid_id);
-        result.set(id, sa1s);
-      }
+    clustered.set(id, {
+      position: booth.position,
+      id: booth.id,
+      cluster: points,
+      tracts: []
     });
   });
+
+  var polygons = d3.geom.voronoi()
+    .x(function(d) { return d.position[0]; })
+    .y(function(d) { return d.position[1]; })
+    (clustered.values());
+
+  // Transform the polygons into a map
+  var result = d3.map();
+  polygons.forEach(function(polygon) {
+    var point = polygon.point;
+    point.voronoi = [];
+    polygon.forEach(function(p) { point.voronoi.push(p); });
+    result.set(point.id, point);
+  });
+
+  var centroidPoints = [];
+  geo.forEach(function(d) {
+    centroidPoints.push({id: d.id, position: d3.geo.centroid(d)});
+  });
+
+  var centroidQuadtree = d3.geom.quadtree()
+    .x(function(d) { return d.position[0]; })
+    .y(function(d) { return d.position[1]; })
+    (centroidPoints);
+
+  result.values().forEach(function(result) {
+    var xExtent = d3.extent(result.voronoi, function(d) { return d[0]; });
+    var yExtent = d3.extent(result.voronoi, function(d) { return d[1]; });
+
+    search(centroidQuadtree, xExtent[0], yExtent[0], xExtent[1], yExtent[1], function(point) {
+      console.log("Booth " + result.id + " matches tract " + point.id);
+      result.tracts.push(point.id);
+    });
+  });
+
+  fs.writeFile("data/result.json", JSON.stringify(result, null, 2));
+  return;
 
   var geojson = {
     "type": "FeatureCollection",
@@ -86,6 +109,13 @@ function ready(error, sa1, boothdata) {
   fs.writeFile("result.json", JSON.stringify(result));
 }
 
+function search(quadtree, x0, y0, x3, y3, callback) {
+  quadtree.visit(function(node, x1, y1, x2, y2) {
+    var p = node.point;
+    if (p && (p.position[0] >= x0) && (p.position[0] < x3) && (p.position[1] >= y0) && (p.position[1] < y3)) callback(p);
+    return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
+  });
+}
 function pointInPolygon (point, vs) {
   // ray-casting algorithm based on
   // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html

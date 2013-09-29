@@ -88,27 +88,35 @@ function ready(error, sa1, boothdata) {
     });
   });
 
-  fs.writeFile("data/result.json", JSON.stringify(result, null, 2));
-  return;
-
   var geojson = {
     "type": "FeatureCollection",
     "features": []
   };
 
-  var feature = {
+  result.values().forEach(function(result) {
+    var feature = polygonFeature(result.id, {
+      booths: result.booths,
+      tracts: result.tracts
+    }, result.voronoi);
+    geojson.features.push(feature);
+    console.log(feature);
+
+  });
+
+  fs.writeFile("data/result.json", JSON.stringify(result, null, 2));
+  fs.writeFile("data/geo.json", JSON.stringify(geojson));
+}
+
+function polygonFeature (id, properties, coordinates) {
+  return {
     "type": "Feature",
     "geometry": {
       "type": "Polygon",
-      "coordinates": [[
-        [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]
-      ]]
+      "coordinates": [coordinates],
     },
-    "properties": { "prop0": "value0" },
-    "id": "xxxx"
+    "properties": properties,
+    "id": id
   };
-
-  fs.writeFile("result.json", JSON.stringify(result));
 }
 
 function search(quadtree, x0, y0, x3, y3, callback) {

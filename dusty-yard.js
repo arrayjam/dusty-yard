@@ -13,7 +13,7 @@ queue()
 //booth.projected = projection([booth.Longitude, booth.Latitude]);
 
 // In meters
-var clusteringThreshold = 1;
+var clusteringThreshold = 1000;
 
 function ready(error, sa1, boothdata) {
   sa1 = JSON.parse(sa1);
@@ -23,6 +23,7 @@ function ready(error, sa1, boothdata) {
   var xExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][0]); });
   var yExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][1]); });
   var extent = [[ xExtent[0] - 10, yExtent[0] - 10 ], [ xExtent[1] + 20, yExtent[1] + 10 ]];
+  console.log(extent);
 
   boothdata = boothdata.map(function(booth) {
     return {
@@ -81,12 +82,13 @@ function ready(error, sa1, boothdata) {
     (centroidPoints);
 
   result.values().forEach(function(result) {
+    if (result.id.toString().indexOf("1") !== 0) return;
     var xExtent = d3.extent(result.voronoi, function(d) { return d[0]; });
     var yExtent = d3.extent(result.voronoi, function(d) { return d[1]; });
 
     search(centroidQuadtree, xExtent[0], yExtent[0], xExtent[1], yExtent[1], function(point) {
       if (pointInPolygon(point.position, result.voronoi)) {
-        console.log("Booth " + result.id + " matches tract " + point.id);
+        //console.log("Booth " + result.id + " matches tract " + point.id);
         result.tracts.push(point.id);
       }
     });
@@ -106,6 +108,8 @@ function ready(error, sa1, boothdata) {
 }
 
 function polygonFeature (id, properties, coordinates) {
+  coordinates.push(coordinates[0]);
+
   return {
     "type": "Feature",
     "geometry": {

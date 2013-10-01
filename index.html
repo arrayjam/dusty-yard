@@ -11,15 +11,20 @@ path {
   stroke: #222;
 }
 
+.voronoi {
+  stroke: blue;
+}
+
 .geojson {
   stroke: red;
+  stroke-width: 2;
 }
 
 </style>
 <body>
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="http://d3js.org/queue.v1.min.js"></script>
-<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="vendor/d3/d3.js"></script>
+<script src="vendor/queue-async/queue.js"></script>
+<script src="vendor/topojson/topojson.js"></script>
 <script>
 var width = 960,
   height = 600;
@@ -49,11 +54,31 @@ var zoom = d3.behavior.zoom()
 
 svg.call(zoom);
 
-d3.json("voronoi.topo.json", function(err, geo) {
-  svg.append("path")
-      .datum(topojson.mesh(geo, geo.objects.voronoi))
+d3.json("data/voronoi.json", function(err, geo) {
+  window.geo = geo;
+  console.log(geo);
+  svg.selectAll("path.geojson")
+      .data(geo.features)
+      .enter().append("path")
       .attr("class", "geojson")
       .attr("d", path);
+
+
+  d3.json("data/result.json", function(err, json) {
+    var booths = d3.values(json).map(function(booth) {
+      return booth.position;
+    });
+
+
+  svg.selectAll("path.voronoi")
+      .data(d3.geom.voronoi(booths.map(projection)))
+      .enter().append("path")
+      .attr("class", "voronoi")
+      .attr("d", function(d) { var path = "M" + d.join("L") + "Z"; return path;});
+
+
+
+  });
 });
 
 function zoomed() {

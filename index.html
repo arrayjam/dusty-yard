@@ -12,12 +12,15 @@ path {
 }
 
 .voronoi {
-  stroke: blue;
+  stroke: none;
 }
 
 .geojson {
   stroke: red;
-  stroke-width: 2;
+}
+
+.ocean {
+  fill: steelblue;
 }
 
 </style>
@@ -38,6 +41,7 @@ var projection = d3.geo.albers()
     .rotate([-ausCenter[0], 0])
     .center([0, ausCenter[1]])
     .parallels(parallels)
+    .clipExtent([[0, 0], [width, height]])
     .precision(0);
 
 var path = d3.geo.path()
@@ -54,32 +58,29 @@ var zoom = d3.behavior.zoom()
 
 svg.call(zoom);
 
-d3.json("data/voronoi.json", function(err, geo) {
+
+queue()
+  .defer(d3.json, "data/voronoi.topo.json")
+  .defer(d3.json, "data/ocean.json")
+  .await(ready);
+
+function ready(err, geo, ocean) {
+
   window.geo = geo;
   console.log(geo);
   svg.selectAll("path.geojson")
-      .data(geo.features)
+      .data(topojson.feature(geo, geo.objects.voronoi).features)
       .enter().append("path")
       .attr("class", "geojson")
       .attr("d", path);
 
+  svg.append("path")
+    .datum(topojson.feature(ocean, ocean.objects.ocean))
+    .attr("class", "ocean")
+    .attr("d", path);
 
-  d3.json("data/result.json", function(err, json) {
-    var booths = d3.values(json).map(function(booth) {
-      return booth.position;
-    });
-
-
-  svg.selectAll("path.voronoi")
-      .data(d3.geom.voronoi(booths.map(projection)))
-      .enter().append("path")
-      .attr("class", "voronoi")
-      .attr("d", function(d) { var path = "M" + d.join("L") + "Z"; return path;});
-
-
-
-  });
-});
+  console.log(ocean);
+}
 
 function zoomed() {
   projection

@@ -26,7 +26,7 @@ data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv
 	node valanalys.js
 
 data/voronoi.topo.json: data/voronoi.json
-	topojson -q 1e7 -o $@ -- voronoi=$^
+	topojson -p -q 1e7 -o $@ -- voronoi=$^
 
 sources/ne_10m_ocean.shp: sources/ne_10m_ocean.zip
 	unzip $^

@@ -7,7 +7,7 @@ var d3 = require("d3"),
 queue()
   .defer(fs.readFile, __dirname + "/data/sa1.json", { encoding: "utf-8" })
   .defer(fs.readFile, __dirname + "/data/booths.csv", { encoding: "utf-8" })
-  //.defer(fs.readFile, __dirname + "/data/votes.csv", { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/votes.csv", { encoding: "utf-8" })
   .await(ready);
 
 // voronoi -> clustered booths + long/lap point + sa1 codes
@@ -19,7 +19,7 @@ var clusteringThreshold = 1000;
 function ready(error, sa1, boothdata, votes) {
   sa1 = JSON.parse(sa1);
   boothdata = d3.csv.parse(boothdata);
-  //votes = d3.csv.parse(votes);
+  votes = d3.csv.parse(votes);
 
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
   var xExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][0]); });
@@ -50,7 +50,6 @@ function ready(error, sa1, boothdata, votes) {
       boothsToCluster.set(point.id, booth.id);
     });
 
-
     // Average clustered points
     booth.position[0] = points.reduce(function(prev, cur) { return prev + cur.position[0]; }, 0) / points.length;
     booth.position[1] = points.reduce(function(prev, cur) { return prev + cur.position[1]; }, 0) / points.length;
@@ -62,6 +61,26 @@ function ready(error, sa1, boothdata, votes) {
       tracts: [],
       votes: []
     });
+
+  });
+
+  votes.forEach(function(vote) {
+    var id = +vote.PollingPlaceID;
+
+    // If we don't have it, it's a mobile booth
+    if (!boothsToCluster.has(id)) return;
+
+    var cluster = clustered.get(boothsToCluster.get(id));
+    //candidate, bpos, elected, helected, party, votes, swing
+    cluster.votes.push([
+      +vote.CandidateID,
+      +vote.BallotPosition,
+      vote.Elected === "Y",
+      vote.HistoricElected === "Y",
+      vote.PartyAb,
+      +vote.OrdinaryVotes,
+      +vote.Swing
+    ]);
   });
 
   var polygons = d3.geom.voronoi()
@@ -77,6 +96,14 @@ function ready(error, sa1, boothdata, votes) {
     point.voronoi = [];
     polygon.forEach(function(p) { point.voronoi.push(p); });
     result.set(point.id, point);
+  });
+
+  result.values().forEach(function(d) {
+    if (!d.booths) { console.log(d); }
+    d.booths.forEach(function(booth) {
+      delete booth.longitude;
+      delete booth.latitude;
+    });
   });
 
   var centroidPoints = [];
@@ -107,7 +134,8 @@ function ready(error, sa1, boothdata, votes) {
   result.values().forEach(function(result) {
     voronoi.features.push(polygonFeature(result.id, {
       booths: result.booths,
-      tracts: result.tracts
+      tracts: result.tracts,
+      votes: result.votes
     }, result.voronoi));
   });
 

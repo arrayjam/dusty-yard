@@ -22,8 +22,8 @@ sources/pollingbooths.csv:
 data/booths.csv: sources/pollingbooths.csv
 	node parse_booths.js
 
-data/voronoi.json: data/booths.csv data/sa1.json
-	node dusty-yard.js
+data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv
+	node valanalys.js
 
 data/voronoi.topo.json: data/voronoi.json
 	topojson -q 1e7 -o $@ -- voronoi=$^
@@ -40,3 +40,8 @@ data/ocean.json: sources/ne_10m_ocean.shp
 sources/%-booths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/HouseStateFirstPrefsByPollingPlaceDownload-17496-$*.csv' \
 		| tail --lines=+2 > $@
+
+data/votes.csv: $(addprefix sources/,$(addsuffix -booths.csv,$(STATES)))
+	touch $@
+	head -q -n 1 $^ | uniq >> $@
+	tail -q -n +2 $^ >> $@

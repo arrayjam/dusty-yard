@@ -62,22 +62,34 @@ svg.call(zoom);
 queue()
   .defer(d3.json, "data/voronoi.topo.json")
   .defer(d3.json, "data/ocean.json")
+  .defer(d3.json, "data/result.json")
   .await(ready);
 
-function ready(err, geo, ocean) {
+var booths;
+function ready(err, geo, ocean, result) {
 
   window.geo = geo;
   console.log(geo);
   svg.selectAll("path.geojson")
       .data(topojson.feature(geo, geo.objects.voronoi).features)
-      .enter().append("path")
+    .enter().append("path")
       .attr("class", "geojson")
       .attr("d", path);
 
   svg.append("path")
-    .datum(topojson.feature(ocean, ocean.objects.ocean))
-    .attr("class", "ocean")
-    .attr("d", path);
+      .datum(topojson.feature(ocean, ocean.objects.ocean))
+      .attr("class", "ocean")
+      .attr("d", path);
+
+  booths = d3.values(result).map(function(d) { return d.position; });
+  svg.selectAll("circle.booth")
+      .data(booths.map(projection))
+    .enter().append("circle")
+      .attr("class", "booth")
+      .attr("cx", function(d) { return d[0]; })
+      .attr("cy", function(d) { return d[1]; })
+      .attr("r", 1.5);
+
 
   console.log(ocean);
 }
@@ -88,6 +100,10 @@ function zoomed() {
     .scale(d3.event.scale);
 
   svg.selectAll("path").attr("d", path);
+  svg.selectAll("circle.booth")
+    .data(booths.map(projection))
+    .attr("cx", function(d) { return d[0]; })
+    .attr("cy", function(d) { return d[1]; });
 }
 </script>
 

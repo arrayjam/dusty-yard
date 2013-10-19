@@ -7,6 +7,7 @@ var d3 = require("d3"),
 queue()
   .defer(fs.readFile, __dirname + "/data/sa1.json", { encoding: "utf-8" })
   .defer(fs.readFile, __dirname + "/data/booths.csv", { encoding: "utf-8" })
+  //.defer(fs.readFile, __dirname + "/data/votes.csv", { encoding: "utf-8" })
   .await(ready);
 
 // voronoi -> clustered booths + long/lap point + sa1 codes
@@ -15,15 +16,15 @@ queue()
 // In meters
 var clusteringThreshold = 1000;
 
-function ready(error, sa1, boothdata) {
+function ready(error, sa1, boothdata, votes) {
   sa1 = JSON.parse(sa1);
   boothdata = d3.csv.parse(boothdata);
+  //votes = d3.csv.parse(votes);
 
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
   var xExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][0]); });
   var yExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][1]); });
   var extent = [[ xExtent[0] - 10, yExtent[0] - 10 ], [ xExtent[1] + 20, yExtent[1] + 10 ]];
-  console.log(extent);
 
   boothdata = boothdata.map(function(booth) {
     return {
@@ -39,20 +40,27 @@ function ready(error, sa1, boothdata) {
   // sphereKnn expects accessors named latitude and longitude
   var lookup = sphereKnn(unclustered.values());
 
+  var boothsToCluster = d3.map();
   var clustered = d3.map();
   unclustered.forEach(function(id, booth) {
+    if (boothsToCluster.has(booth.id)) return;
     var points = lookup(booth.latitude, booth.longitude, Infinity, clusteringThreshold);
     points.forEach(function(point) {
       point.position = [point.longitude, point.latitude];
-      delete point.longitude, delete point.latitude;
-      unclustered.remove(point.id);
+      boothsToCluster.set(point.id, booth.id);
     });
+
+
+    // Average clustered points
+    booth.position[0] = points.reduce(function(prev, cur) { return prev + cur.position[0]; }, 0) / points.length;
+    booth.position[1] = points.reduce(function(prev, cur) { return prev + cur.position[1]; }, 0) / points.length;
 
     clustered.set(id, {
       position: booth.position,
       id: booth.id,
       booths: points,
-      tracts: []
+      tracts: [],
+      votes: []
     });
   });
 

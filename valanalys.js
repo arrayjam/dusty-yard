@@ -71,16 +71,21 @@ function ready(error, sa1, boothdata, votes) {
     if (!boothsToCluster.has(id)) return;
 
     var cluster = clustered.get(boothsToCluster.get(id));
-    //candidate, bpos, elected, helected, party, votes, swing
-    cluster.votes.push([
-      +vote.CandidateID,
-      +vote.BallotPosition,
-      vote.Elected === "Y",
-      vote.HistoricElected === "Y",
-      vote.PartyAb,
-      +vote.OrdinaryVotes,
-      +vote.Swing
-    ]);
+    ////candidate, bpos, elected, helected, party, votes, swing
+    ////party, votes, swing
+    cluster.votes.push({
+      party: vote.PartyAb || "Informal",
+      votes: +vote.OrdinaryVotes
+    });
+  });
+
+  clustered.values().forEach(function(d) {
+    var nest = d3.nest()
+      .key(function(d) { return d.party; })
+      .rollup(function(d) { return d3.sum(d, function(d) { return d.votes; }); })
+      .entries(d.votes);
+
+    d.votes = nest.map(function(d) { return [d.key, d.values]; });
   });
 
   var polygons = d3.geom.voronoi()
@@ -99,11 +104,12 @@ function ready(error, sa1, boothdata, votes) {
   });
 
   result.values().forEach(function(d) {
-    if (!d.booths) { console.log(d); }
     d.booths.forEach(function(booth) {
       delete booth.longitude;
       delete booth.latitude;
     });
+    // Just how many booths
+    //d.booths = d.booths.length;
   });
 
   var centroidPoints = [];

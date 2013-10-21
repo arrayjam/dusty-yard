@@ -123,13 +123,11 @@ function ready(error, sa1, boothdata, votes) {
     (centroidPoints);
 
   result.values().forEach(function(result) {
-    if (result.id.toString().indexOf("1") !== 0) return;
     var xExtent = d3.extent(result.voronoi, function(d) { return d[0]; });
     var yExtent = d3.extent(result.voronoi, function(d) { return d[1]; });
 
     search(centroidQuadtree, xExtent[0], yExtent[0], xExtent[1], yExtent[1], function(point) {
       if (pointInPolygon(point.position, result.voronoi)) {
-        //console.log("Booth " + result.id + " matches tract " + point.id);
         result.tracts.push(point.id);
       }
     });

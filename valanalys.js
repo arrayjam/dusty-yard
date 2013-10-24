@@ -87,7 +87,7 @@ function ready(error, sa1, boothdata, votes, sa1data) {
       .rollup(function(d) { return d3.sum(d, function(d) { return d.votes; }); })
       .entries(d.votes);
 
-    d.votes = nest.map(function(d) { o = {}; o[d.key] = d.values; return o; });
+    d.votes = nest.map(function(d) { var o = {}; o[d.key] = d.values; return o; });
   });
 
   var polygons = d3.geom.voronoi()

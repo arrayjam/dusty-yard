@@ -23,7 +23,7 @@ sources/pollingbooths.csv:
 data/booths.csv: sources/pollingbooths.csv
 	node parse_booths.js
 
-data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv
+data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv data/sa1.csv
 	node valanalys.js
 
 data/voronoi.topo.json: data/voronoi.json

@@ -155,7 +155,7 @@ function ready(error, sa1, boothdata, votes, sa1data) {
           age_55_ov:            d3.sum(d, function(d) { return +d.Total_55_64_yr + d.Total_65_74_yr + d.Total_75_84_yr + d.Total_85ov; }),
           christians:           d3.sum(d, function(d) { return +d.Christianity_Tot_P; }),
           non_religious:        d3.sum(d, function(d) { return +d.No_Religion_P; }),
-          year_12_equivalent:   d3.sum(d, function(d) { return +d.P_Y12e_tot; }),
+          year_12_equivalent:   d3.sum(d, function(d) { return +d.P_Y12e_Tot; }),
           couple_childless:     d3.sum(d, function(d) { return +d.Tot_cple_fam_no_child; }),
           couple_child:         d3.sum(d, function(d) { return +d.Tot_cple_fam_wth_chld; }),
           single_child:         d3.sum(d, function(d) { return +d.Tot_One_parent_fam; }),

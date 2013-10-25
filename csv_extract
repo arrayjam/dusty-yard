@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+
+csv extract 0 < sources/2011Census_B01_AUST_SA1_short.csv > result.csv
+
+for csv in `echo sources/2011Census_*_AUST_SA1_short.csv`; do
+	csv peek < $csv > peek
+	for field in `cat fields`; do
+		num=$(grep $field peek | grep -Po '^(\d+)')
+		if [ "$num" != "" ]; then
+			csv extract 0 $num < $csv > tmp
+			join -t "," -1 1 -2 1 result.csv tmp > tmp2
+			mv tmp2 result.csv
+			rm tmp
+		fi
+	done
+	rm peek
+done
+

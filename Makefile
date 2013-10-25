@@ -6,7 +6,8 @@ STATES = NSW VIC QLD WA SA TAS ACT NT
 all: \
 	data/voronoi.topo.json \
 	data/ocean.json \
-	$(addprefix sources/,$(addsuffix -booths.csv,$(STATES)))
+	$(addprefix sources/,$(addsuffix -booths.csv,$(STATES))) \
+	data/sa1.csv
 
 sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 	unzip $^
@@ -45,3 +46,9 @@ data/votes.csv: $(addprefix sources/,$(addsuffix -booths.csv,$(STATES)))
 	touch $@
 	head -q -n 1 $^ | uniq >> $@
 	tail -q -n +2 $^ >> $@
+
+data/sa1.csv:
+	sh csv_extract
+	mv result.csv $@
+
+

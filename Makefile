@@ -18,7 +18,7 @@ data/sa1.json: sources/SA1_2011_AUST.shp
 
 sources/pollingbooths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/GeneralPollingPlacesDownload-17496.csv' \
-		| tail --lines=+2 > $@
+		| tail -n +2 > $@
 
 data/booths.csv: sources/pollingbooths.csv
 	node parse_booths.js

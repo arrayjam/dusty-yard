@@ -10,7 +10,7 @@ all: \
 	data/sa1.csv
 
 sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
-	unzip $^
+	unzip $^ -d sources/
 	touch $@
 
 data/sa1.json: sources/SA1_2011_AUST.shp
@@ -30,7 +30,7 @@ data/voronoi.topo.json: data/voronoi.json
 	topojson -p -q 1e7 -o $@ -- voronoi=$^
 
 sources/ne_10m_ocean.shp: sources/ne_10m_ocean.zip
-	unzip $^
+	unzip $^ -d sources/
 	touch $@
 
 data/ocean.json: sources/ne_10m_ocean.shp
@@ -40,7 +40,7 @@ data/ocean.json: sources/ne_10m_ocean.shp
 
 sources/%-booths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/HouseStateFirstPrefsByPollingPlaceDownload-17496-$*.csv' \
-		| tail --lines=+2 > $@
+		| tail -n +2 > $@
 
 data/votes.csv: $(addprefix sources/,$(addsuffix -booths.csv,$(STATES)))
 	touch $@

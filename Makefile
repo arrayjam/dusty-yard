@@ -4,8 +4,7 @@ STATES = NSW VIC QLD WA SA TAS ACT NT
 #http://vtr.aec.gov.au/Downloads/HouseStateFirstPrefsByPollingPlaceDownload-17496-VIC.csv
 
 all: \
-	data/voronoi.topo.json \
-	data/ocean.json \
+	data/combined.topo.json \
 	$(addprefix sources/,$(addsuffix -booths.csv,$(STATES))) \
 	data/sa1.csv
 
@@ -26,8 +25,15 @@ data/booths.csv: sources/pollingbooths.csv
 data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv data/sa1.csv
 	node valanalys.js
 
-data/voronoi.topo.json: data/voronoi.json
-	topojson -p -q 1e7 -o $@ -- voronoi=$^
+data/combined.topo.json: data/voronoi.json sources/SED_2011_AUST.shp
+	$(TOPOJSON) \
+		-q 1e5 \
+		-s 0.025 \
+		-o $@ \
+		--projection 'd3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18])' \
+		-- \
+		voronoi=data/voronoi.json \
+		electorates=sources/SED_2011_AUST.shp
 
 sources/ne_10m_ocean.shp: sources/ne_10m_ocean.zip
 	unzip $^ -d sources/

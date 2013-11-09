@@ -17,7 +17,7 @@ data/sa1.json: sources/SA1_2011_AUST.shp
 
 sources/pollingbooths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/GeneralPollingPlacesDownload-17496.csv' \
-		| tail -n +2 > $@
+		| gtail -n +2 > $@
 
 data/booths.csv: sources/pollingbooths.csv
 	node parse_booths.js
@@ -46,15 +46,13 @@ data/ocean.json: sources/ne_10m_ocean.shp
 
 sources/%-booths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/HouseStateFirstPrefsByPollingPlaceDownload-17496-$*.csv' \
-		| tail -n +2 > $@
+		| gtail -n +2 > $@
 
 data/votes.csv: $(addprefix sources/,$(addsuffix -booths.csv,$(STATES)))
 	touch $@
-	head -q -n 1 $^ | uniq >> $@
-	tail -q -n +2 $^ >> $@
+	ghead -q -n 1 $^ | uniq >> $@
+	gtail -q -n +2 $^ >> $@
 
 data/sa1.csv:
 	sh csv_extract
 	mv result.csv $@
-
-

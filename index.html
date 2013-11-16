@@ -28,82 +28,99 @@ path {
 <script src="vendor/d3/d3.js"></script>
 <script src="vendor/queue-async/queue.js"></script>
 <script src="vendor/topojson/topojson.js"></script>
+<script src="vendor/crossfilter/crossfilter.js"></script>
 <script>
 var width = 960,
-  height = 600;
+    height = 500;
 
-var ausCenter = [144.9, -37.8];
-var parallels = [-36, -18];
+// This projection is baked into the TopoJSON file,
+// but is used here to compute the desired zoom translate.
+var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
 
-var projection = d3.geo.albers()
-    .translate([width / 2, height / 2])
-    .scale(171600)
-    .rotate([-ausCenter[0], 0])
-    .center([0, ausCenter[1]])
-    .parallels(parallels)
-    .clipExtent([[0, 0], [width, height]])
-    .precision(0);
+var melb = projection([144.9631, -37.8136]),
+    center = projection.translate();
 
-var path = d3.geo.path()
-    .projection(projection);
+var scale,
+    translate,
+    area; // minimum area threshold
 
-var svg = d3.select("body").append("svg")
+var clip = d3.geo.clipExtent()
+    .extent([[0, 0], [width, height]]);
+
+var simplify = d3.geo.transform({
+  point: function(x, y, z) {
+    if (z >= area) this.stream.point(x * scale + translate[0], y * scale + translate[1]);
+  }
+});
+
+var zoom = d3.behavior.zoom()
+    .size([width, height])
+    .on("zoom", zoomed);
+
+var canvas = d3.select("body").append("canvas")
     .attr("width", width)
     .attr("height", height);
 
-var zoom = d3.behavior.zoom()
-    .translate(projection.translate())
-    .scale(projection.scale())
-    .on("zoom", zoomed);
+var context = canvas.node().getContext("2d");
 
-svg.call(zoom);
-
-
-queue()
-  .defer(d3.json, "data/voronoi.topo.json")
-  .defer(d3.json, "data/ocean.json")
-  .defer(d3.json, "data/result.json")
-  .await(ready);
-
-var booths;
-function ready(err, geo, ocean, result) {
-
-  window.geo = geo;
-  console.log(geo);
-  svg.selectAll("path.geojson")
-      .data(topojson.feature(geo, geo.objects.voronoi).features)
-    .enter().append("path")
-      .attr("class", "geojson")
-      .attr("d", path);
-
-  svg.append("path")
-      .datum(topojson.feature(ocean, ocean.objects.ocean))
-      .attr("class", "ocean")
-      .attr("d", path);
-
-  booths = d3.values(result).map(function(d) { return d.position; });
-  svg.selectAll("circle.booth")
-      .data(booths.map(projection))
-    .enter().append("circle")
-      .attr("class", "booth")
-      .attr("cx", function(d) { return d[0]; })
-      .attr("cy", function(d) { return d[1]; })
-      .attr("r", 1.5);
+var path = d3.geo.path()
+    .projection({stream: function(s) { return simplify.stream(clip.stream(s)); }})
+    .context(context);
 
 
-  console.log(ocean);
+d3.json("data/combined.topo.json", function(error, geo) {
+  var simple = topojson.presimplify(geo);
+  console.log(simple);
+  console.log(topojson.feature(simple, geo.objects.voronoi));
+  console.log(topojson.mesh(simple, geo.objects.voronoi));
+  canvas
+    .datum([
+      topojson.mesh(simple, geo.objects.electorates),
+      topojson.mesh(simple, geo.objects.voronoi),
+    ])
+      .call(zoomTo(melb, 200).event)
+    .transition()
+      .duration(4000)
+      .each(jump);
+});
+
+function zoomTo(point, scale) {
+  return zoom
+      .translate([width / 2 - point[0] * scale, height / 2 - point[1] * scale])
+      .scale(scale);
 }
 
-function zoomed() {
-  projection
-    .translate(d3.event.translate)
-    .scale(d3.event.scale);
+function zoomed(d) {
+  translate = zoom.translate();
+  scale = zoom.scale();
+  area = 4 / scale / scale;
+  context.clearRect(0, 0, width, height);
 
-  svg.selectAll("path").attr("d", path);
-  svg.selectAll("circle.booth")
-    .data(booths.map(projection))
-    .attr("cx", function(d) { return d[0]; })
-    .attr("cy", function(d) { return d[1]; });
+
+  context.strokeStyle = '#222';
+  context.beginPath();
+  path(d[0]);
+  context.stroke();
+
+  context.strokeStyle = '#222';
+  context.fillStyle = "steelblue";
+  context.beginPath();
+  path(d[1]);
+  <!--context.fill();-->
+  context.stroke();
+  <!--context.fillStyle = "#f00", context.beginPath(), path(d[1].features[19]), context.fill();-->
 }
+
+function jump() {
+  var t = d3.select(this);
+  (function repeat() {
+    t = t.transition()
+        .call(zoomTo(center, 1).event)
+      .transition()
+        .call(zoomTo(melb, 200).event)
+        .each("end", repeat);
+  })();
+}
+
 </script>
 

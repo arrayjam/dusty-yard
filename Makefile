@@ -8,6 +8,9 @@ all: \
 	$(addprefix sources/,$(addsuffix -booths.csv,$(STATES))) \
 	data/sa1.csv
 
+clean:
+	rm data/combined.topo.json data/voronoi.js data/sa1.csv
+
 sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 	unzip $^ -d sources/
 	touch $@

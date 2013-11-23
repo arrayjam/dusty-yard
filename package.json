@@ -4,10 +4,10 @@
   "description": "",
   "main": "dusty-yard.js",
   "dependencies": {
-    "d3": "~3.3.5",
-    "dsv": "~0.0.2",
+    "d3": "~3.3.10",
+    "dsv": "0.0.3",
     "queue-async": "~1.0.4",
-    "topojson": "~1.4.2",
+    "topojson": "~1.4.4",
     "sphere-knn": "~1.2.1",
     "iconv": "~2.0.7",
     "csvutils": "~0.1.4"

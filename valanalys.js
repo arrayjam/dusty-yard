@@ -15,7 +15,7 @@ queue()
 //booth.projected = projection([booth.Longitude, booth.Latitude]);
 
 // In meters
-var clusteringThreshold = 1000;
+var clusteringThreshold = 2000;
 
 function ready(error, sa1, boothdata, votes, sa1data) {
   sa1 = JSON.parse(sa1);
@@ -61,7 +61,7 @@ function ready(error, sa1, boothdata, votes, sa1data) {
       id: booth.id,
       booths: points,
       tracts: [],
-      votes: []
+      votes: {}
     });
 
   });
@@ -75,20 +75,20 @@ function ready(error, sa1, boothdata, votes, sa1data) {
     var cluster = clustered.get(boothsToCluster.get(id));
     ////candidate, bpos, elected, helected, party, votes, swing
     ////party, votes, swing
-    cluster.votes.push({
-      party: vote.PartyAb || "Informal",
-      votes: +vote.OrdinaryVotes
-    });
+    var party = vote.PartyAb || "Informal";
+    cluster.votes[party] = cluster.votes[party] || 0;
+    cluster.votes[party] += +vote.OrdinaryVotes;
   });
 
-  clustered.values().forEach(function(d) {
-    var nest = d3.nest()
-      .key(function(d) { return d.party; })
-      .rollup(function(d) { return d3.sum(d, function(d) { return d.votes; }); })
-      .entries(d.votes);
+  //clustered.values().forEach(function(d) {
+    //console.log(d);
+    //var nest = d3.nest()
+      //.key(function(d) { return d.party; })
+      //.rollup(function(d) { return d3.sum(d, function(d) { return d.votes; }); })
+      //.entries(d.votes);
 
-    d.votes = nest.map(function(d) { var o = {}; o[d.key] = d.values; return o; });
-  });
+    //d.votes = nest.map(function(d) { var o = {}; o[d.key] = d.values; return o; });
+  //});
 
   var polygons = d3.geom.voronoi()
     .x(function(d) { return d.position[0]; })

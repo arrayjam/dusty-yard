@@ -1,126 +1,151 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+<link rel="stylesheet" href="vendor/dcjs/dc.css">
 <style>
-
-path {
-  stroke-linejoin: round;
-  fill: none;
-}
-
-.topojson {
-  stroke: #222;
-}
-
-.voronoi {
-  stroke: none;
-}
-
-.geojson {
-  stroke: red;
-}
-
-.ocean {
-  fill: steelblue;
-}
-
+  strong {
+    float: right;
+  }
 </style>
 <body>
+  <!--<div id="coalition"><strong>Coalition</strong></div>-->
+  <!--<div id="greens"><strong>Greens</strong></div>-->
+  <div id="votes"><strong>Votes</strong></div>
+  <div id="pie"><strong>Votes</strong></div>
+  <div id="christians"><strong>Christians</strong></div>
+  <div id="athiest"><strong>Non-Religious</strong></div>
+  <div id="age"><strong>Median Age</strong></div>
 <script src="vendor/d3/d3.js"></script>
-<script src="vendor/queue-async/queue.js"></script>
-<script src="vendor/topojson/topojson.js"></script>
 <script src="vendor/crossfilter/crossfilter.js"></script>
+<script src="vendor/dcjs/dc.js"></script>
 <script>
-var width = 960,
-    height = 500;
+  dc.constants.EVENT_DELAY = 0;
+  d3.json("data/result.json", function(err, data) {
+    data = d3.values(data).filter(function(d) { return d.demographics.population > 0; });
+    window.data = data;
 
-// This projection is baked into the TopoJSON file,
-// but is used here to compute the desired zoom translate.
-var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
+    cf = crossfilter(data),
+    all = cf.groupAll(),
+//    coalition = cf.dimension(function(d) { return ((d.votes.LP || 0) + (d.votes.LNP || 0) + (d.votes.NP || 0) + (d.votes.CLR || 0)); }),
+//    coalitionGroup = coalition.group(function(d) { return d; }),
 
-var melb = projection([144.9631, -37.8136]),
-    center = projection.translate();
+    //greens = cf.dimension(function(d) { return d.votes.GRN / d.demographics.population * 100; })
+    //greensGroup = greens.group(function(d) { return Math.floor(d); });
 
-var scale,
-    translate,
-    area; // minimum area threshold
+    votes = cf.dimension(function(d) { return d; }),
+    votesGroup = votes.group().reduce(
+      function (p, d) {
+        p.coalition += ((d.votes.LP || 0) + (d.votes.LNP || 0) + (d.votes.NP || 0) + (d.votes.CLR || 0)) / d.demographics.population;
+        p.labour += (d.votes.ALP || 0) / d.demographics.population;
+        p.greens += (d.votes.GRN || 0) / d.demographics.population;
+        return p;
+      },
+      function (p, d) {
+        p.coalition -= ((d.votes.LP || 0) + (d.votes.LNP || 0) + (d.votes.NP || 0) + (d.votes.CLR || 0)) / d.demographics.population;
+        p.labour -= (d.votes.ALP || 0) / d.demographics.population;
+        p.greens -= (d.votes.GRN || 0) / d.demographics.population;
+        return p;
+      },
+      function () {
+        return {coalition: 0, labour: 0, greens: 0};
+      }
+    ),
 
-var clip = d3.geo.clipExtent()
-    .extent([[0, 0], [width, height]]);
+    age = cf.dimension(function(d) { return d.demographics.median_age; }),
+    ageGroup = age.group(),
 
-var simplify = d3.geo.transform({
-  point: function(x, y, z) {
-    if (z >= area) this.stream.point(x * scale + translate[0], y * scale + translate[1]);
-  }
-});
+    christians = cf.dimension(function(d) { return d.demographics.christians / d.demographics.population * 100; })
+    christiansGroup = christians.group(function(d) { return Math.floor(d); });
 
-var zoom = d3.behavior.zoom()
-    .size([width, height])
-    .on("zoom", zoomed);
-
-var canvas = d3.select("body").append("canvas")
-    .attr("width", width)
-    .attr("height", height);
-
-var context = canvas.node().getContext("2d");
-
-var path = d3.geo.path()
-    .projection({stream: function(s) { return simplify.stream(clip.stream(s)); }})
-    .context(context);
-
-
-d3.json("data/combined.topo.json", function(error, geo) {
-  var simple = topojson.presimplify(geo);
-  console.log(simple);
-  console.log(topojson.feature(simple, geo.objects.voronoi));
-  console.log(topojson.mesh(simple, geo.objects.voronoi));
-  canvas
-    .datum([
-      topojson.mesh(simple, geo.objects.electorates),
-      topojson.mesh(simple, geo.objects.voronoi),
-    ])
-      .call(zoomTo(melb, 200).event)
-    .transition()
-      .duration(4000)
-      .each(jump);
-});
-
-function zoomTo(point, scale) {
-  return zoom
-      .translate([width / 2 - point[0] * scale, height / 2 - point[1] * scale])
-      .scale(scale);
-}
-
-function zoomed(d) {
-  translate = zoom.translate();
-  scale = zoom.scale();
-  area = 4 / scale / scale;
-  context.clearRect(0, 0, width, height);
+    athiest = cf.dimension(function(d) { return d.demographics.non_religious / d.demographics.population * 100; })
+    athiestGroup = athiest.group(function(d) { return Math.floor(d); });
 
 
-  context.strokeStyle = '#222';
-  context.beginPath();
-  path(d[0]);
-  context.stroke();
+//    greensChart = dc.barChart("#greens")
+//      .width(500)
+//      .dimension(greens)
+//      .group(greensGroup)
+//      .centerBar(false)
+//      .gap(1)
+//      .transitionDuration(00)
+//      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+//      .colorAccessor(function(d, i){ return i; })
+//      .x(d3.scale.linear().domain([0, 80]))
+//      .y(d3.scale.pow().domain([0, 100]));
 
-  context.strokeStyle = '#222';
-  context.fillStyle = "steelblue";
-  context.beginPath();
-  path(d[1]);
-  <!--context.fill();-->
-  context.stroke();
-  <!--context.fillStyle = "#f00", context.beginPath(), path(d[1].features[19]), context.fill();-->
-}
+    christiansChart = dc.barChart("#christians")
+      .width(500)
+      .dimension(christians)
+      .group(christiansGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
 
-function jump() {
-  var t = d3.select(this);
-  (function repeat() {
-    t = t.transition()
-        .call(zoomTo(center, 1).event)
-      .transition()
-        .call(zoomTo(melb, 200).event)
-        .each("end", repeat);
-  })();
-}
+    athiestChart = dc.barChart("#athiest")
+      .width(500)
+      .dimension(athiest)
+      .group(athiestGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
 
+    var svg = d3.select("#votes").append("svg").style("height", 200);
+
+    ageChart = dc.barChart("#age")
+      .width(500)
+      .dimension(age)
+      .group(ageGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]))
+      .on("postRedraw", function() {
+        var data = d3.entries(votesGroup.top(1)[0].value);
+        window.v = data;
+        var scale = d3.scale.pow().domain([0, 1000000]).range([0, 100]);
+        var vs = svg.selectAll("rect.votes")
+          .data(data, function(d) { return d.key; });
+
+        var color = d3.scale.ordinal().domain(["greens", "coalition", "labour"]).range(["#10C25B", "#080CAB", "#F00011"]);
+
+        var arc = d3.svg.arc()
+          .outerRadius(100 - 10)
+          .innerRadius(0);
+
+        var pie = d3.layout.pie()
+          .sort(null)
+          .value(function(d) { return d.value; });
+
+        var g = svg.selectAll(".arc")
+        .data(pie(data));
+
+        g
+          .select("path")
+        .attr("d", arc)
+          .style("fill", function(d) { return color(d.data.key);});
+
+        g.enter().append("g")
+          .attr("class", "arc")
+          .append("path");
+
+
+
+        g.attr("transform", "translate(100, 100)");
+      });
+
+    dc.renderAll();
+    dc.redrawAll();
+    console.log(d3.values(data));
+  });
 </script>
 

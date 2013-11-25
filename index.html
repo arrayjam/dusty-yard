@@ -3,17 +3,21 @@
 <link rel="stylesheet" href="vendor/dcjs/dc.css">
 <style>
   strong {
-    float: right;
+    position: absolute;
+    margin-left: 40px;
+    margin-top: -10px;
   }
 </style>
 <body>
   <!--<div id="coalition"><strong>Coalition</strong></div>-->
   <!--<div id="greens"><strong>Greens</strong></div>-->
-  <div id="votes"><strong>Votes</strong></div>
-  <div id="pie"><strong>Votes</strong></div>
+  <div id="votes"></div>
   <div id="christians"><strong>Christians</strong></div>
   <div id="athiest"><strong>Non-Religious</strong></div>
   <div id="age"><strong>Median Age</strong></div>
+  <div id="income"><strong>Income</strong></div>
+  <div id="migrants"><strong>Migrants</strong></div>
+  <div id="internet"><strong>Internet</strong></div>
 <script src="vendor/d3/d3.js"></script>
 <script src="vendor/crossfilter/crossfilter.js"></script>
 <script src="vendor/dcjs/dc.js"></script>
@@ -53,10 +57,19 @@
     age = cf.dimension(function(d) { return d.demographics.median_age; }),
     ageGroup = age.group(),
 
-    christians = cf.dimension(function(d) { return d.demographics.christians / d.demographics.population * 100; })
-    christiansGroup = christians.group(function(d) { return Math.floor(d); });
+    income = cf.dimension(function(d) { return d.demographics.median_income; }),
+    incomeGroup = income.group(function(d) { return Math.floor(d / 20) * 20; }),
 
-    athiest = cf.dimension(function(d) { return d.demographics.non_religious / d.demographics.population * 100; })
+    christians = cf.dimension(function(d) { return d.demographics.christians / d.demographics.population * 100; }),
+    christiansGroup = christians.group(function(d) { return Math.floor(d); }),
+
+    migrants = cf.dimension(function(d) { return d.demographics.migrants / d.demographics.population * 100; }),
+    migrantsGroup = migrants.group(function(d) { return Math.floor(d); }),
+
+    internet = cf.dimension(function(d) { return 100 - (d.demographics.no_internet / d.demographics.population * 100); }),
+    internetGroup = internet.group(function(d) { return Math.floor(d); }),
+
+    athiest = cf.dimension(function(d) { return d.demographics.non_religious / d.demographics.population * 100; }),
     athiestGroup = athiest.group(function(d) { return Math.floor(d); });
 
 
@@ -88,6 +101,42 @@
       .width(500)
       .dimension(athiest)
       .group(athiestGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
+
+    incomeChart = dc.barChart("#income")
+      .width(500)
+      .dimension(income)
+      .group(incomeGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([500, 4000]))
+      .y(d3.scale.pow().domain([0, 40]));
+
+    migrantsChart = dc.barChart("#migrants")
+      .width(500)
+      .dimension(migrants)
+      .group(migrantsGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
+
+    migrantsChart = dc.barChart("#internet")
+      .width(500)
+      .dimension(internet)
+      .group(internetGroup)
       .centerBar(false)
       .gap(1)
       .transitionDuration(00)

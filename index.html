@@ -16,8 +16,9 @@
   <div id="athiest"><strong>Non-Religious</strong></div>
   <div id="age"><strong>Median Age</strong></div>
   <div id="income"><strong>Income</strong></div>
-  <div id="migrants"><strong>Migrants</strong></div>
+  <!--<div id="migrants"><strong>Migrants</strong></div>-->
   <div id="internet"><strong>Internet</strong></div>
+  <div id="young"><strong>Aged 18-34</strong></div>
 <script src="vendor/d3/d3.js"></script>
 <script src="vendor/crossfilter/crossfilter.js"></script>
 <script src="vendor/dcjs/dc.js"></script>
@@ -69,6 +70,9 @@
     internet = cf.dimension(function(d) { return 100 - (d.demographics.no_internet / d.demographics.population * 100); }),
     internetGroup = internet.group(function(d) { return Math.floor(d); }),
 
+    young = cf.dimension(function(d) { return d.demographics.age_18_34 / d.demographics.population * 100; }),
+    youngGroup = young.group(function(d) { return Math.floor(d); }),
+
     athiest = cf.dimension(function(d) { return d.demographics.non_religious / d.demographics.population * 100; }),
     athiestGroup = athiest.group(function(d) { return Math.floor(d); });
 
@@ -86,6 +90,7 @@
 //      .y(d3.scale.pow().domain([0, 100]));
 
     christiansChart = dc.barChart("#christians")
+      .elasticY(true)
       .width(500)
       .dimension(christians)
       .group(christiansGroup)
@@ -98,6 +103,7 @@
       .y(d3.scale.pow().domain([0, 150]));
 
     athiestChart = dc.barChart("#athiest")
+      .elasticY(true)
       .width(500)
       .dimension(athiest)
       .group(athiestGroup)
@@ -110,6 +116,7 @@
       .y(d3.scale.pow().domain([0, 150]));
 
     incomeChart = dc.barChart("#income")
+      .elasticY(true)
       .width(500)
       .dimension(income)
       .group(incomeGroup)
@@ -122,6 +129,7 @@
       .y(d3.scale.pow().domain([0, 40]));
 
     migrantsChart = dc.barChart("#migrants")
+      .elasticY(true)
       .width(500)
       .dimension(migrants)
       .group(migrantsGroup)
@@ -133,7 +141,8 @@
       .x(d3.scale.linear().domain([0, 100]))
       .y(d3.scale.pow().domain([0, 150]));
 
-    migrantsChart = dc.barChart("#internet")
+    internetChart = dc.barChart("#internet")
+      .elasticY(true)
       .width(500)
       .dimension(internet)
       .group(internetGroup)
@@ -145,9 +154,23 @@
       .x(d3.scale.linear().domain([0, 100]))
       .y(d3.scale.pow().domain([0, 150]));
 
+     youngChart = dc.barChart("#young")
+      .elasticY(true)
+      .width(500)
+      .dimension(young)
+      .group(youngGroup)
+      .centerBar(false)
+      .gap(1)
+      .transitionDuration(00)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
+
     var svg = d3.select("#votes").append("svg").style("height", 200);
 
     ageChart = dc.barChart("#age")
+      .elasticY(true)
       .width(500)
       .dimension(age)
       .group(ageGroup)

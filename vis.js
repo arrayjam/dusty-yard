@@ -70,10 +70,6 @@ d3.json("data/result.json", function(err, data) {
   //      .x(d3.scale.linear().domain([0, 80]))
   //      .y(d3.scale.pow().domain([0, 100]));
   //
-  var totalPopulation = data.reduce(function(p, v) { return p + v.demographics.population; }, 0);
-  var count = function(chart) {
-    return ~~((chart.dimension().groupAll().reduceSum(function(d) { return d.demographics.population; }).value() / totalPopulation) * 100) + "%";
-  };
 
 
   christiansChart = dc.barChart("#christians")
@@ -162,6 +158,10 @@ d3.json("data/result.json", function(err, data) {
   .y(d3.scale.pow().domain([0, 150]));
 
   var svg = d3.select("#votes").append("svg").style("height", 200);
+  var totalPopulation = data.reduce(function(p, v) { return p + v.demographics.population; }, 0);
+  var count = function() {
+    return "Australians represented: " + (all.reduceSum(function(d) { return d.demographics.population; }).value() / totalPopulation) * 100 + "%";
+  };
 
   ageChart = dc.barChart("#age")
   .margins({left: 50, top: 50, right: 50, bottom: 50})
@@ -209,6 +209,8 @@ d3.json("data/result.json", function(err, data) {
 
 
     g.attr("transform", "translate(100, 100)");
+
+    d3.select(".count").text(count());
 
   });
 

@@ -7,7 +7,7 @@ suite.add("Push", function() {
 })
 // add listeners
 .on('complete', function() {
-  dc.constants.EVENT_DELAY = ~~(d3.scale.linear().domain([1e-3, 1e-5]).range([100, 0]))(this[0].stats.mean);
+  dc.constants.EVENT_DELAY = ~~(d3.scale.linear().domain([1e-3, 1e-5]).range([10, 0]))(this[0].stats.mean);
   transitionSpeed(dc.constants.EVENT_DELAY);
   console.log(dc.constants.EVENT_DELAY);
   console.log(this);
@@ -16,7 +16,7 @@ suite.add("Push", function() {
 .run({async: true});
 
 var transitionSpeed = function(speed) {
-  dc.chartRegistry.list().forEach(function(chart) { chart.transitionDuration(dc.constants.EVENT_DELAY); });
+  dc.chartRegistry.list().forEach(function(chart) { chart.transitionDuration(speed); });
 };
 
 
@@ -198,7 +198,7 @@ d3.json("data/result.json", function(err, data) {
     window.v = data;
     var scale = d3.scale.pow().domain([0, 1000000]).range([0, 100]);
 
-    var color = d3.scale.ordinal().domain(["greens", "coalition", "labour", "informal", "pup", "kap"]).range(["#10C25B", "#080CAB", "#990000", "#fff", "#ff0", "#f00"]);
+    var color = d3.scale.ordinal().domain(["greens", "coalition", "labour", "informal", "pup", "kap"]).range(["#10C25B", "#080CAB", "#990000", "#000", "#ff0", "#f00"]);
 
     var arc = d3.svg.arc()
     .outerRadius(100 - 10)

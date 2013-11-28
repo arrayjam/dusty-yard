@@ -7,7 +7,7 @@ suite.add("Push", function() {
 })
 // add listeners
 .on('complete', function() {
-  dc.constants.EVENT_DELAY = ~~(d3.scale.linear().domain([1e2, 1e-5]).range([100, 0]))(this[0].stats.mean);
+  dc.constants.EVENT_DELAY = ~~(d3.scale.linear().domain([1e-3, 1e-5]).range([100, 0]))(this[0].stats.mean);
   transitionSpeed(dc.constants.EVENT_DELAY);
   console.log(dc.constants.EVENT_DELAY);
   console.log(this);

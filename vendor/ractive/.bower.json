@@ -1,0 +1,26 @@
+{
+  "name": "ractive",
+  "version": "0.3.7",
+  "main": "Ractive.js",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "release",
+    "sandbox",
+    "src",
+    "test",
+    "wrapper",
+    "Gruntfile.js"
+  ],
+  "homepage": "https://github.com/Rich-Harris/Ractive",
+  "_release": "0.3.7",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.3.7",
+    "commit": "5e1bf2001d739b91483f2ce7fd6e2e4780bdafc6"
+  },
+  "_source": "git://github.com/Rich-Harris/Ractive.git",
+  "_target": "~0.3.7",
+  "_originalSource": "ractive",
+  "_direct": true
+}

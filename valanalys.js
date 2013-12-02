@@ -8,6 +8,7 @@ queue()
   .defer(fs.readFile, __dirname + "/data/sa1.json", { encoding: "utf-8" })
   .defer(fs.readFile, __dirname + "/data/booths.csv", { encoding: "utf-8" })
   .defer(fs.readFile, __dirname + "/data/votes.csv", { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/tpp.csv", { encoding: "utf-8" })
   .defer(fs.readFile, __dirname + "/data/sa1.csv", { encoding: "utf-8" })
   .await(ready);
 
@@ -17,10 +18,11 @@ queue()
 // In meters
 var clusteringThreshold = 2000;
 
-function ready(error, sa1, boothdata, votes, sa1data) {
+function ready(error, sa1, boothdata, votes, tpp, sa1data) {
   sa1 = JSON.parse(sa1);
   boothdata = d3.csv.parse(boothdata);
   votes = d3.csv.parse(votes);
+  tpp = d3.csv.parse(tpp);
   sa1data = d3.csv.parse(sa1data);
 
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
@@ -61,7 +63,7 @@ function ready(error, sa1, boothdata, votes, sa1data) {
       id: booth.id,
       booths: points,
       tracts: [],
-      votes: {}
+      votes: {party: {}, tpp: {}}
     });
 
   });
@@ -76,8 +78,19 @@ function ready(error, sa1, boothdata, votes, sa1data) {
     ////candidate, bpos, elected, helected, party, votes, swing
     ////party, votes, swing
     var party = vote.PartyAb || "Informal";
-    cluster.votes[party] = cluster.votes[party] || 0;
-    cluster.votes[party] += +vote.OrdinaryVotes;
+    cluster.votes.party[party] = cluster.votes[party] || 0;
+    cluster.votes.party[party] += +vote.OrdinaryVotes;
+  });
+
+  tpp.forEach(function(vote) {
+    var id = +vote.PollingPlaceID;
+
+    if (!boothsToCluster.has(id)) return;
+
+    var cluster = clustered.get(boothsToCluster.get(id));
+
+    cluster.votes.tpp.labor = +vote["Australian Labor Party Votes"];
+    cluster.votes.tpp.coalition = +vote["Liberal/National Coalition Votes"];
   });
 
   //clustered.values().forEach(function(d) {
@@ -146,13 +159,17 @@ function ready(error, sa1, boothdata, votes, sa1data) {
     var sa1s = tracts.map(function(d) { return sa1Map.get(d); });
     result.demographics = d3.nest()
       .rollup(function(d) {
+        var age_18_34 = d3.sum(d, function(d) { return +d.Age_yr_18_P + d.Age_yr_19_P + d.Age_yr_20_P + d.Age_yr_21_P + d.Age_yr_22_P + d.Age_yr_23_P + d.Age_yr_24_P + d.Total_25_34_yr; });
+        var age_35_54 = d3.sum(d, function(d) { return +d.Total_35_44_yr + d.Total_45_54_yr; });
+        var age_55_ov = d3.sum(d, function(d) { return +d.Total_55_64_yr + d.Total_65_74_yr + d.Total_75_84_yr + d.Total_85ov; });
         return {
+          voting_population:    age_18_34 + age_35_54 + age_55_ov,
+          age_18_34:            age_18_34,
+          age_35_54:            age_35_54,
+          age_55_ov:            age_55_ov,
           population:           d3.sum(d, function(d) { return +d.Tot_P_P; }),
           migrants:             d3.sum(d, function(d) { return +d.Birthplace_Elsewhere_P; }),
           other_lang:           d3.sum(d, function(d) { return +d.Lang_spoken_home_Oth_Lang_P; }),
-          age_18_34:            d3.sum(d, function(d) { return +d.Age_yr_18_P + d.Age_yr_19_P + d.Age_yr_20_P + d.Age_yr_21_P + d.Age_yr_22_P + d.Age_yr_23_P + d.Age_yr_24_P + d.Total_25_34_yr; }),
-          age_35_54:            d3.sum(d, function(d) { return +d.Total_35_44_yr + d.Total_45_54_yr; }),
-          age_55_ov:            d3.sum(d, function(d) { return +d.Total_55_64_yr + d.Total_65_74_yr + d.Total_75_84_yr + d.Total_85ov; }),
           christians:           d3.sum(d, function(d) { return +d.Christianity_Tot_P; }),
           non_religious:        d3.sum(d, function(d) { return +d.No_Religion_P; }),
           year_12_equivalent:   d3.sum(d, function(d) { return +d.P_Y12e_Tot; }),
@@ -179,11 +196,11 @@ function ready(error, sa1, boothdata, votes, sa1data) {
 
   function analyseVotesToPopulation () {
     var stats = result.values().map(function(result) {
-      var votes = d3.sum(result.votes, function(d) { return d[1]; });
-      var population = d3.sum([result.demographics.age_18_34, result.demographics.age_35_54, result.demographics.age_55_ov]);
-      return {votes: votes, population: population, ratio: (population && votes) ? population/votes : 0};
+      var partyVotes = d3.sum(d3.values(result.votes.party)) - result.votes.party.Informal;
+      var tppVotes = d3.sum(d3.values(result.votes.tpp));
+      var population = result.demographics.population;
+      //console.log({partyVotes: partyVotes, tpp: tppVotes, population: population});
     });
-    console.log(d3.median(stats, function(d) { return d.ratio; }));
   }
   //analyseVotesToPopulation();
 

@@ -155,28 +155,18 @@ var ractive = new Ractive({
         return all.reduceSum(function(d) { return d.properties.demographics.population; }).value() / totalPopulation * 100;
       };
       console.log(electorates);
-      var clip = d3.select("svg").append("defs").append("clipPath").attr("id", "aus");
+      var clip = d3.select("svg").append("defs").append("mask").attr("id", "aus");
 
-      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).attr("class", "clip")
-      .style("fill", "white");
+      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "white");
+      //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
       map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
 
-      ageChart = dc.barChart("#age")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(age)
-      .group(ageGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]))
-      .on("postRedraw", function() {
+      dc._renderlet = function() {
         var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
         f.exit().remove();
-        f.enter().append("path").attr("class", "land").attr("d", path).attr("clip-path", "url(#aus)");
+        f.enter().append("path").attr("class", "land").attr("d", path);
+
+        map.attr("mask", "url(#aus)");
 
 
         var rep = count();
@@ -236,8 +226,21 @@ var ractive = new Ractive({
 
 
         d3.select(".count").text("Australians represented: " + rep + "%");
+      }
 
-      });
+      ageChart = dc.barChart("#age")
+      .margins({left: 50, top: 50, right: 50, bottom: 50})
+      .elasticY(true)
+      .width(500)
+      .dimension(age)
+      .group(ageGroup)
+      .centerBar(false)
+      .gap(1)
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colorAccessor(function(d, i){ return i; })
+      .x(d3.scale.linear().domain([0, 100]))
+      .y(d3.scale.pow().domain([0, 150]));
+
       dc.chartRegistry.list().forEach(function(chart) { chart.transitionDuration(0); });
       dc.constants.EVENT_DELAY = 0;
 

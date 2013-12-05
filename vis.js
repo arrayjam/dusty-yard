@@ -157,16 +157,33 @@ var ractive = new Ractive({
       console.log(electorates);
       var clip = d3.select("svg").append("defs").append("mask").attr("id", "aus");
 
-      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "white");
+      clip.selectAll("rect").data([0]).enter().append("rect")
+        .attr({
+          x: 0,
+          y: 0,
+          width: 1000,
+          height: 1000
+        })
+        .style("fill", "white");
+      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black");
       //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
       map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
+      d3.select("svg").append("rect")
+        .attr({
+          x: 0,
+          y: 0,
+          width: 1000,
+          height: 1000
+        })
+        .style("fill", "steelblue")
+        .attr("mask", "url(#aus)");
 
       dc._renderlet = function() {
         var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
         f.exit().remove();
         f.enter().append("path").attr("class", "land").attr("d", path);
 
-        map.attr("mask", "url(#aus)");
+
 
 
         var rep = count();

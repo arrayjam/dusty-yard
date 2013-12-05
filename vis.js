@@ -11,7 +11,7 @@ var ractive = new Ractive({
     d3.json("data/combined.topo.json", function(err, data) {
       ex(data, "data");
       electorates = topojson.feature(data, data.objects.electorates);
-      mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a === b; });
+      mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a !== b; });
       data = topojson.feature(data, data.objects.voronoi);
       data.features = data.features
         .filter(function(d) { return d.properties.demographics.population > 0; });
@@ -20,6 +20,7 @@ var ractive = new Ractive({
       //var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
       var projection = null;
       var path = d3.geo.path().projection(projection);
+      ex(path, "path");
 
       cf = crossfilter(data.features);
       all = cf.groupAll();
@@ -165,9 +166,8 @@ var ractive = new Ractive({
           height: 1000
         })
         .style("fill", "white");
-      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black");
+      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
       //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
-      map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
       d3.select("svg").append("rect")
         .attr({
           x: 0,
@@ -175,9 +175,11 @@ var ractive = new Ractive({
           width: 1000,
           height: 1000
         })
-        .style("fill", "steelblue")
+        .style("fill", "white")
         .attr("mask", "url(#aus)");
 
+
+      map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
       dc._renderlet = function() {
         var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
         f.exit().remove();

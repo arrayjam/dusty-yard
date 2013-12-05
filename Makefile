@@ -9,7 +9,7 @@ all: \
 	data/sa1.csv
 
 clean:
-	rm data/combined.topo.json data/voronoi.js data/sa1.csv
+	rm data/combined.topo.json data/voronoi.json data/sa1.csv
 
 sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 	unzip $^ -d sources/
@@ -34,6 +34,7 @@ data/combined.topo.json: data/voronoi.json sources/SED_2011_AUST.shp
 		-s 0.025 \
 		-o $@ \
 		--projection 'd3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18])' \
+		-p \
 		-- \
 		voronoi=data/voronoi.json \
 		electorates=sources/SED_2011_AUST.shp

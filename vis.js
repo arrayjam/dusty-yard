@@ -8,12 +8,20 @@ var ractive = new Ractive({
   complete: function() {
     var self = this;
 
-    d3.json("data/result.json", function(err, data) {
-      data = d3.values(data)
-        .filter(function(d) { return d.demographics.population > 0; });
+    d3.json("data/combined.topo.json", function(err, data) {
       ex(data, "data");
+      electorates = topojson.feature(data, data.objects.electorates);
+      mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a === b; });
+      data = topojson.feature(data, data.objects.voronoi);
+      data.features = data.features
+        .filter(function(d) { return d.properties.demographics.population > 0; });
 
-      cf = crossfilter(data);
+      var map = d3.select("#map").append("svg").append("g");
+      //var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
+      var projection = null;
+      var path = d3.geo.path().projection(projection);
+
+      cf = crossfilter(data.features);
       all = cf.groupAll();
       //    coalition = cf.dimension(function(d) { return ((d.votes.party.LP || 0) + (d.votes.party.LNP || 0) + (d.votes.party.NP || 0) + (d.votes.party.CLR || 0)); }),
       //    coalitionGroup = coalition.group(function(d) { return d; }),
@@ -23,37 +31,37 @@ var ractive = new Ractive({
         if (votes) votes.dispose();
         if (votesGroup) votesGroup.dispose();
 
-        votes = cf.dimension(function(d) { return d; });
+        votes = cf.dimension(function(d) { return d.properties; });
         votesGroup = votes.group().reduce(
           function (p, d) {
             if (tpp) {
-              p.coalition += d.votes.tpp.coalition || 0;
-              p.labor += d.votes.tpp.labor || 0;
+              p.coalition += d.properties.votes.tpp.coalition || 0;
+              p.labor += d.properties.votes.tpp.labor || 0;
             } else {
-              p.coalition += (d.votes.party.LP || 0) + (d.votes.party.LNP || 0) + (d.votes.party.NP || 0);
-              p.labor += d.votes.party.ALP || 0;
-              p.greens += d.votes.party.GRN || 0;
-              p.pup += d.votes.party.PUP || 0;
-              p.kap += d.votes.party.KAP || 0;
+              p.coalition += (d.properties.votes.party.LP || 0) + (d.properties.votes.party.LNP || 0) + (d.properties.votes.party.NP || 0);
+              p.labor += d.properties.votes.party.ALP || 0;
+              p.greens += d.properties.votes.party.GRN || 0;
+              p.pup += d.properties.votes.party.PUP || 0;
+              p.kap += d.properties.votes.party.KAP || 0;
             }
 
-            if (informal) p.informal += d.votes.party.Informal || 0;
+            if (informal) p.informal += d.properties.votes.party.Informal || 0;
 
             return p;
           },
           function (p, d) {
             if (tpp) {
-              p.coalition -= d.votes.tpp.coalition || 0;
-              p.labor -= d.votes.tpp.labor || 0;
+              p.coalition -= d.properties.votes.tpp.coalition || 0;
+              p.labor -= d.properties.votes.tpp.labor || 0;
             } else {
-              p.coalition -= (d.votes.party.LP || 0) + (d.votes.party.LNP || 0) + (d.votes.party.NP || 0);
-              p.labor -= d.votes.party.ALP || 0;
-              p.greens -= d.votes.party.GRN || 0;
-              p.pup -= d.votes.party.PUP || 0;
-              p.kap -= d.votes.party.KAP || 0;
+              p.coalition -= (d.properties.votes.party.LP || 0) + (d.properties.votes.party.LNP || 0) + (d.properties.votes.party.NP || 0);
+              p.labor -= d.properties.votes.party.ALP || 0;
+              p.greens -= d.properties.votes.party.GRN || 0;
+              p.pup -= d.properties.votes.party.PUP || 0;
+              p.kap -= d.properties.votes.party.KAP || 0;
             }
 
-            if (informal) p.informal -= d.votes.party.Informal || 0;
+            if (informal) p.informal -= d.properties.votes.party.Informal || 0;
 
             return p;
           },
@@ -83,30 +91,19 @@ var ractive = new Ractive({
       ex(votesGroup, "votesGroup");
       ex(calcVotes, "calcVotes");
 
-      age = cf.dimension(function(d) { return d.demographics.median_age; }),
-      ageGroup = age.group(),
+      features = cf.dimension(function(d) { return d; });
 
-      income = cf.dimension(function(d) { return d.demographics.median_income; }),
-      incomeGroup = income.group(function(d) { return Math.floor(d / 20) * 20; }),
+      age = cf.dimension(function(d) { return d.properties.demographics.median_age; });
+      ageGroup = age.group();
 
-      christians = cf.dimension(function(d) { return d.demographics.christians / d.demographics.population * 100; });
-      christiansGroup = christians.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.demographics.christians; });
+      christians = cf.dimension(function(d) { return d.properties.demographics.christians / d.properties.demographics.population * 100; });
+      christiansGroup = christians.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.christians; });
 
-      greens = cf.dimension(function(d) { return (d.votes.party.GRN || 0) / d.demographics.population * 100; });
-      greensGroup = greens.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.votes.party.GRN; });
+      greens = cf.dimension(function(d) { return (d.properties.votes.party.GRN || 0) / d.properties.demographics.population * 100; });
+      greensGroup = greens.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.votes.party.GRN; });
 
-      migrants = cf.dimension(function(d) { return d.demographics.migrants / d.demographics.population * 100; })
-      migrantsGroup = migrants.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.demographics.migrants; });
-
-      internet = cf.dimension(function(d) { return 100 - (d.demographics.no_internet / d.demographics.population * 100); });
-      internetGroup = internet.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.demographics.population - d.demographics.no_internet; });
-
-      young = cf.dimension(function(d) { return d.demographics.age_18_34 / d.demographics.population * 100; });
-      youngGroup = young.group(function(d) { return Math.floor(d); });
-
-      var atheist = cf.dimension(function(d) { return d.demographics.non_religious / d.demographics.population * 100; });
-      atheistGroup = atheist.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.demographics.non_religious; });
-
+      migrants = cf.dimension(function(d) { return d.properties.demographics.migrants / d.properties.demographics.population * 100; })
+      migrantsGroup = migrants.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.migrants; });
 
       greensChart = dc.barChart("#greens")
         .margins({left: 50, top: 50, right: 50, bottom: 50})
@@ -138,76 +135,31 @@ var ractive = new Ractive({
         .x(d3.scale.linear().domain([0, 100]))
         .xAxis().tickFormat(function(v) {return v + "%"; });
 
-      atheistChart = dc.barChart("#atheist")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(atheist)
-      .group(atheistGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]));
-
-      incomeChart = dc.barChart("#income")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(income)
-      .group(incomeGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([500, 4000]))
-      .y(d3.scale.pow().domain([0, 40]));
-
       migrantsChart = dc.barChart("#migrants")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(migrants)
-      .group(migrantsGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]));
+        .margins({left: 50, top: 50, right: 50, bottom: 50})
+        .elasticY(true)
+        .width(500)
+        .dimension(migrants)
+        .group(migrantsGroup)
+        .centerBar(false)
+        .gap(1)
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colorAccessor(function(d, i){ return i; })
+        .x(d3.scale.linear().domain([0, 100]))
+        .y(d3.scale.pow().domain([0, 150]));
 
-      internetChart = dc.barChart("#internet")
-      .margins({left: 100, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(internet)
-      .group(internetGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]));
-
-      youngChart = dc.barChart("#young")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(young)
-      .group(youngGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]));
 
       var svg = d3.select("#votes").append("svg").style("height", 200);
-      var totalPopulation = data.reduce(function(p, v) { return p + v.demographics.population; }, 0);
+      var totalPopulation = data.features.reduce(function(p, v) { return p + v.properties.demographics.population; }, 0);
       var count = function() {
-        return all.reduceSum(function(d) { return d.demographics.population; }).value() / totalPopulation * 100;
+        return all.reduceSum(function(d) { return d.properties.demographics.population; }).value() / totalPopulation * 100;
       };
+      console.log(electorates);
+      var clip = d3.select("svg").append("defs").append("clipPath").attr("id", "aus");
+
+      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).attr("class", "clip")
+      .style("fill", "white");
+      map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
 
       ageChart = dc.barChart("#age")
       .margins({left: 50, top: 50, right: 50, bottom: 50})
@@ -222,14 +174,17 @@ var ractive = new Ractive({
       .x(d3.scale.linear().domain([0, 100]))
       .y(d3.scale.pow().domain([0, 150]))
       .on("postRedraw", function() {
+        var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
+        f.exit().remove();
+        f.enter().append("path").attr("class", "land").attr("d", path).attr("clip-path", "url(#aus)");
+
+
         var rep = count();
         var data = d3.entries(votesGroup.all()[0].value).filter(function(d) { return d.value > 1e-5; });
-        window.v = data;
         var scale = d3.scale.pow().domain([0, 1000000]).range([0, 100]);
 
         var color = d3.scale.ordinal().domain(["greens", "coalition", "labor", "informal", "pup", "kap"]).range(["#10C25B", "#080CAB", "#990000", "#000", "#ff0", "#f00"]);
 
-        console.log(rep);
         var arc = d3.svg.arc()
           .innerRadius(70)
           .outerRadius(100);
@@ -238,7 +193,6 @@ var ractive = new Ractive({
         .sort(function(a, b) { if (a.key === "coalition") return 1; })
         .value(function(d) { return d.value; });
 
-        console.log(data);
 
         var g = svg.selectAll(".arc")
           .data(pie(data), function(d) { return d.data.key; });

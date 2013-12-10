@@ -20,7 +20,7 @@
   }
 
   #map svg {
-    position: absolute;
+    <!--position: absolute;-->
     pointer-events: none;
     fill: steelblue;
   }
@@ -37,15 +37,17 @@
   <script id='template' type='text/ractive'>
     <!--<div id="coalition"><strong>Coalition</strong></div>-->
     <!--<div id="greens"><strong>Greens</strong></div>-->
-    <div id="map"></div>
     <input type="checkbox" checked="{{tpp}}" />TPP
     <input type="checkbox" checked="{{informal}}" />Informal
     <div id="votes"></div>
     <span class="count"></span>
     <div id="christians"><strong>Christians</strong></div>
+    <div id="year12"><strong>Year 12 or equivalent completed</strong></div>
+    <div id="childless"><strong>Couples without children</strong></div>
     <div id="greens"><strong>Greens votes</strong></div>
     <div id="age"><strong>Median Age</strong></div>
     <div id="migrants"><strong>Migrants</strong></div>
+    <div id="map"></div>
   </script>
 <script src="vendor/d3/d3.js"></script>
 <script src="vendor/topojson/topojson.js"></script>

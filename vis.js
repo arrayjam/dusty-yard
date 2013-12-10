@@ -11,7 +11,8 @@ var ractive = new Ractive({
     d3.json("data/combined.topo.json", function(err, data) {
       ex(data, "data");
       electorates = topojson.feature(data, data.objects.electorates);
-      mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a !== b; });
+      //mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a !== b; });
+      mesh = topojson.mesh(data, data.objects.electorates);
       data = topojson.feature(data, data.objects.voronoi);
       data.features = data.features
         .filter(function(d) { return d.properties.demographics.population > 0; });
@@ -100,25 +101,31 @@ var ractive = new Ractive({
       christians = cf.dimension(function(d) { return d.properties.demographics.christians / d.properties.demographics.population * 100; });
       christiansGroup = christians.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.christians; });
 
-      greens = cf.dimension(function(d) { return (d.properties.votes.party.GRN || 0) / d.properties.demographics.population * 100; });
-      greensGroup = greens.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.votes.party.GRN; });
+      //greens = cf.dimension(function(d) { return (d.properties.votes.party.GRN || 0) / d.properties.demographics.population * 100; });
+      //greensGroup = greens.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.votes.party.GRN; });
 
-      migrants = cf.dimension(function(d) { return d.properties.demographics.migrants / d.properties.demographics.population * 100; })
+      migrants = cf.dimension(function(d) { return d.properties.demographics.migrants / d.properties.demographics.population * 100; });
       migrantsGroup = migrants.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.migrants; });
 
-      greensChart = dc.barChart("#greens")
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(greens)
-        .group(greensGroup)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .y(d3.scale.pow().domain([0, 150]))
-        .xAxis().tickFormat(function(v) {return v + "%"; });
+      year12 = cf.dimension(function(d) { return d.properties.demographics.year_12_equivalent / d.properties.demographics.population * 100; });
+      year12Group = year12.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.year_12_equivalent; });
+
+      childless = cf.dimension(function(d) { return d.properties.demographics.couple_childless / d.properties.demographics.population * 100; });
+      childlessGroup = childless.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.couple_childless; });
+
+      //greensChart = dc.barChart("#greens")
+        //.margins({left: 50, top: 50, right: 50, bottom: 50})
+        //.elasticY(true)
+        //.width(500)
+        //.dimension(greens)
+        //.group(greensGroup)
+        //.centerBar(false)
+        //.gap(1)
+        //.colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        //.colorAccessor(function(d, i){ return i; })
+        //.x(d3.scale.linear().domain([0, 100]))
+        //.y(d3.scale.pow().domain([0, 150]))
+        //.xAxis().tickFormat(function(v) {return v + "%"; });
 
 
       christiansChart = dc.barChart("#christians");
@@ -149,6 +156,37 @@ var ractive = new Ractive({
         .x(d3.scale.linear().domain([0, 100]))
         .y(d3.scale.pow().domain([0, 150]));
 
+      year12Chart = dc.barChart("#year12");
+
+      year12Chart
+        .margins({left: 50, top: 50, right: 50, bottom: 50})
+        .elasticY(true)
+        .width(500)
+        .dimension(year12)
+        .group(year12Group)
+        .centerBar(false)
+        .gap(1)
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colorAccessor(function(d, i){ return i; })
+        .x(d3.scale.linear().domain([0, 100]))
+        .xAxis().tickFormat(function(v) {return v + "%"; });
+
+
+      childlessChart = dc.barChart("#childless");
+
+      childlessChart
+        .margins({left: 50, top: 50, right: 50, bottom: 50})
+        .elasticY(true)
+        .width(500)
+        .dimension(childless)
+        .group(childlessGroup)
+        .centerBar(false)
+        .gap(1)
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colorAccessor(function(d, i){ return i; })
+        .x(d3.scale.linear().domain([0, 100]))
+        .xAxis().tickFormat(function(v) {return v + "%"; });
+
 
       var svg = d3.select("#votes").append("svg").style("height", 200);
       var totalPopulation = data.features.reduce(function(p, v) { return p + v.properties.demographics.population; }, 0);
@@ -168,15 +206,15 @@ var ractive = new Ractive({
         .style("fill", "white");
       clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
       //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
-      d3.select("svg").append("rect")
-        .attr({
-          x: 0,
-          y: 0,
-          width: 1000,
-          height: 1000
-        })
-        .style("fill", "white")
-        .attr("mask", "url(#aus)");
+      //d3.select("svg").append("rect")
+        //.attr({
+          //x: 0,
+          //y: 0,
+          //width: 1000,
+          //height: 1000
+        //})
+        //.style("fill", "white")
+        //.attr("mask", "url(#aus)");
 
 
       map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);

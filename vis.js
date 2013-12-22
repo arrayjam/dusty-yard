@@ -93,6 +93,62 @@ var ractive = new Ractive({
       ex(votesGroup, "votesGroup");
       ex(calcVotes, "calcVotes");
 
+      var percentageChart = function() {
+        var crossfilter,
+            key,
+            dimension,
+            groupFunction = function(d) { return Math.floor(d); },
+            group,
+            reduceFunction = function(d) { return d.properties.demographics.population; },
+            dimensionFunction = function(d) { return (key(d) || 0) / reduceFunction(d) * 100; },
+            chartInstance;
+
+        var chart = function(div) {
+          div.each(function() {
+            var div = d3.select(this);
+
+            dimension = crossfilter.dimension(dimensionFunction);
+            group = dimension.group(groupFunction).reduceSum(key);
+
+            chartInstance = dc.barChart(div.node());
+
+            chartInstance
+              .margins({left: 50, top: 50, right: 50, bottom: 50})
+              .elasticY(true)
+              .width(500)
+              .dimension(dimension)
+              .group(group)
+              .centerBar(false)
+              .gap(1)
+              .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
+              .colorAccessor(function(d, i){ return i; })
+              .x(d3.scale.linear().domain([0, 100]))
+              .y(d3.scale.pow().domain([0, 150]))
+              .xAxis().tickFormat(function(v) {return v + "%"; });
+          });
+        };
+
+        chart.key = function(_) {
+          if (!arguments.length) return key;
+          key = _;
+          return chart;
+        };
+
+        chart.crossfilter = function(_) {
+          if (!arguments.length) return crossfilter;
+          crossfilter = _;
+          return chart;
+        };
+
+        chart.chartInstance = function(_) {
+          if (!arguments.length) return chartInstance;
+          chartInstance = _;
+          return chart;
+        };
+
+        return chart;
+      };
+
       features = cf.dimension(function(d) { return d; });
 
       age = cf.dimension(function(d) { return d.properties.demographics.median_age; });
@@ -101,8 +157,8 @@ var ractive = new Ractive({
       christians = cf.dimension(function(d) { return d.properties.demographics.christians / d.properties.demographics.population * 100; });
       christiansGroup = christians.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.christians; });
 
-      //greens = cf.dimension(function(d) { return (d.properties.votes.party.GRN || 0) / d.properties.demographics.population * 100; });
-      //greensGroup = greens.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.votes.party.GRN; });
+      coalitionVotes = cf.dimension(function(d) { return (d.properties.votes.tpp.coalition || 0) / d.properties.demographics.population * 100; });
+      coalitionVotesGroup = coalitionVotes.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.population; });
 
       migrants = cf.dimension(function(d) { return d.properties.demographics.migrants / d.properties.demographics.population * 100; });
       migrantsGroup = migrants.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.migrants; });
@@ -113,19 +169,24 @@ var ractive = new Ractive({
       childless = cf.dimension(function(d) { return d.properties.demographics.couple_childless / d.properties.demographics.population * 100; });
       childlessGroup = childless.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.couple_childless; });
 
-      //greensChart = dc.barChart("#greens")
-        //.margins({left: 50, top: 50, right: 50, bottom: 50})
-        //.elasticY(true)
-        //.width(500)
-        //.dimension(greens)
-        //.group(greensGroup)
-        //.centerBar(false)
-        //.gap(1)
-        //.colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
-        //.colorAccessor(function(d, i){ return i; })
-        //.x(d3.scale.linear().domain([0, 100]))
-        //.y(d3.scale.pow().domain([0, 150]))
-        //.xAxis().tickFormat(function(v) {return v + "%"; });
+      coalitionChart = dc.barChart("#coalition")
+        .margins({left: 50, top: 50, right: 50, bottom: 50})
+        .elasticY(true)
+        .width(500)
+        .dimension(coalitionVotes)
+        .group(coalitionVotesGroup)
+        .centerBar(false)
+        .gap(1)
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
+        .colorAccessor(function(d, i){ return i; })
+        .x(d3.scale.linear().domain([0, 100]))
+        .y(d3.scale.pow().domain([0, 150]))
+        .xAxis().tickFormat(function(v) {return v + "%"; });
+
+      d3.select("#labor")
+        .call(percentageChart()
+            .crossfilter(cf)
+            .key(function(d) { return d.properties.demographics.no_internet; }));
 
 
       christiansChart = dc.barChart("#christians");
@@ -138,7 +199,7 @@ var ractive = new Ractive({
         .group(christiansGroup)
         .centerBar(false)
         .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
         .colorAccessor(function(d, i){ return i; })
         .x(d3.scale.linear().domain([0, 100]))
         .xAxis().tickFormat(function(v) {return v + "%"; });
@@ -151,7 +212,7 @@ var ractive = new Ractive({
         .group(migrantsGroup)
         .centerBar(false)
         .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
         .colorAccessor(function(d, i){ return i; })
         .x(d3.scale.linear().domain([0, 100]))
         .y(d3.scale.pow().domain([0, 150]));
@@ -166,7 +227,7 @@ var ractive = new Ractive({
         .group(year12Group)
         .centerBar(false)
         .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
         .colorAccessor(function(d, i){ return i; })
         .x(d3.scale.linear().domain([0, 100]))
         .xAxis().tickFormat(function(v) {return v + "%"; });
@@ -182,7 +243,7 @@ var ractive = new Ractive({
         .group(childlessGroup)
         .centerBar(false)
         .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
         .colorAccessor(function(d, i){ return i; })
         .x(d3.scale.linear().domain([0, 100]))
         .xAxis().tickFormat(function(v) {return v + "%"; });
@@ -293,7 +354,7 @@ var ractive = new Ractive({
       .group(ageGroup)
       .centerBar(false)
       .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,19]).range(["#00cc00", "#a60000"])))
+      .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
       .colorAccessor(function(d, i){ return i; })
       .x(d3.scale.linear().domain([0, 100]))
       .y(d3.scale.pow().domain([0, 150]));

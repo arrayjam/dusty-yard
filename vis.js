@@ -93,6 +93,55 @@ var ractive = new Ractive({
       ex(votesGroup, "votesGroup");
       ex(calcVotes, "calcVotes");
 
+      var medianChart = function() {
+        var crossfilter,
+            key,
+            dimension,
+            groupFunction = function(d) { return Math.floor(d); },
+            group,
+            reduceFunction = function(d) { return d.properties.demographics.population; },
+            dimensionFunction = function(d) { return key(d); },
+            chartInstance;
+
+        var chart = function(div) {
+          div.each(function() {
+            var div = d3.select(this);
+
+            dimension = crossfilter.dimension(dimensionFunction);
+            group = dimension.group(groupFunction).reduceSum(key);
+
+            chartInstance = dc.barChart(div.node());
+
+            chartInstance
+              .margins({left: 50, top: 50, right: 50, bottom: 50})
+              .elasticY(true)
+              .width(500)
+              .dimension(dimension)
+              .group(group)
+              .centerBar(false)
+              .gap(1)
+              .colors(d3.range(50).map(d3.scale.linear().domain([0,50]).range(["red", "blue"])))
+              .colorAccessor(function(d, i){ console.log(arguments); return i; })
+              .x(d3.scale.linear().domain([0, 100]))
+              .y(d3.scale.pow().domain([0, 150]));
+          });
+        };
+
+        chart.key = function(_) {
+          if (!arguments.length) return key;
+          key = _;
+          return chart;
+        };
+
+        chart.crossfilter = function(_) {
+          if (!arguments.length) return crossfilter;
+          crossfilter = _;
+          return chart;
+        };
+
+        return chart;
+      };
+
       var percentageChart = function() {
         var crossfilter,
             key,
@@ -185,8 +234,13 @@ var ractive = new Ractive({
 
       d3.select("#labor")
         .call(percentageChart()
-            .crossfilter(cf)
-            .key(function(d) { return d.properties.demographics.no_internet; }));
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.demographics.no_internet; }));
+
+      d3.select("#age")
+        .call(medianChart()
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.demographics.median_age; }));
 
 
       christiansChart = dc.barChart("#christians");
@@ -345,19 +399,6 @@ var ractive = new Ractive({
 
         d3.select(".count").text("Australians represented: " + rep + "%");
       }
-
-      ageChart = dc.barChart("#age")
-      .margins({left: 50, top: 50, right: 50, bottom: 50})
-      .elasticY(true)
-      .width(500)
-      .dimension(age)
-      .group(ageGroup)
-      .centerBar(false)
-      .gap(1)
-      .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-      .colorAccessor(function(d, i){ return i; })
-      .x(d3.scale.linear().domain([0, 100]))
-      .y(d3.scale.pow().domain([0, 150]));
 
       dc.chartRegistry.list().forEach(function(chart) { chart.transitionDuration(0); });
       dc.constants.EVENT_DELAY = 0;

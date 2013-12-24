@@ -2,7 +2,8 @@ var d3 = require("d3"),
   queue = require("queue-async"),
   fs = require("fs"),
   topojson = require("topojson"),
-  sphereKnn = require("sphere-knn");
+  sphereKnn = require("sphere-knn"),
+  GJV = require("geojson-validation");
 
 queue()
   .defer(fs.readFile, __dirname + "/data/sa1.json",       { encoding: "utf-8" })
@@ -157,7 +158,6 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
 
   var clipped = d3.map();
   polygons.forEach(function(voronoi) {
-
     // Turn the voronoi polygon into a d3.geom.polygon
     var clip_plane = d3.geom.polygon(voronoi);
 
@@ -170,9 +170,7 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
     var clip_bounds = getBounds(voronoi);
 
     ausPolygons.forEach(function(feature) {
-      var feature_bounds = feature.bounds;
-
-      if (!boundsOverlap(clip_bounds, feature_bounds)) return;
+      if (!boundsOverlap(clip_bounds, feature.bounds)) return;
       // Clone the feature so we don't destroy the original
       var subject = copyPolygon(feature);
 
@@ -186,23 +184,11 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
     clipped.set(clip_plane_id, features);
   });
 
-  e();
-
-
-
   // Transform the polygons into a map
   var result = d3.map();
   polygons.forEach(function(polygon) {
     var point = polygon.point;
     point.voronoi = [];
-    polygon = d3.geom.polygon(polygon);
-    ausPolygons.forEach(function(feature) {
-      var copy = [];
-      feature.forEach(function(d) { copy.push(d); });
-      copy = d3.geom.polygon(copy);
-      polygon.clip(copy);
-      //console.log(polygon.area(), copy.area());
-    });
     polygon.forEach(function(p) { point.voronoi.push(p); });
     result.set(point.id, point);
   });
@@ -275,12 +261,14 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
 
   var voronoi = geojson();
   result.values().forEach(function(result) {
+    if (!result.tracts.length) return;
     voronoi.features.push(polygonFeature(result.id, {
       booths: result.booths,
       votes: result.votes,
       tracts: result.tracts,
       demographics: result.demographics,
-    }, result.voronoi));
+    }, clipped.get(result.id)));
+
   });
 
   function analyseVotesToPopulation () {
@@ -292,19 +280,24 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
     });
   }
   //analyseVotesToPopulation();
+  //
+
+  GJV.valid(voronoi, function() { console.log(arguments); });
+
 
   fs.writeFile("data/result.json", JSON.stringify(result, null, 2));
   fs.writeFile("data/voronoi.json", JSON.stringify(voronoi, null, 2));
 }
 
 function polygonFeature (id, properties, coordinates) {
-  coordinates.push(coordinates[0]);
+  //coordinates.push(coordinates[0]);
+  //coordinates.forEach(function(polygon) { polygon.push(polygon[0]); });
 
   return {
     "type": "Feature",
     "geometry": {
-      "type": "Polygon",
-      "coordinates": [coordinates],
+      "type": "MultiPolygon",
+      "coordinates": [ coordinates ],
     },
     "properties": properties,
     "id": id

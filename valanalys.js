@@ -5,11 +5,12 @@ var d3 = require("d3"),
   sphereKnn = require("sphere-knn");
 
 queue()
-  .defer(fs.readFile, __dirname + "/data/sa1.json", { encoding: "utf-8" })
-  .defer(fs.readFile, __dirname + "/data/booths.csv", { encoding: "utf-8" })
-  .defer(fs.readFile, __dirname + "/data/votes.csv", { encoding: "utf-8" })
-  .defer(fs.readFile, __dirname + "/data/tpp.csv", { encoding: "utf-8" })
-  .defer(fs.readFile, __dirname + "/data/sa1.csv", { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/sa1.json",       { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/australia.json", { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/booths.csv",     { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/votes.csv",      { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/tpp.csv",        { encoding: "utf-8" })
+  .defer(fs.readFile, __dirname + "/data/sa1.csv",        { encoding: "utf-8" })
   .await(ready);
 
 // voronoi -> clustered booths + long/lap point + sa1 codes
@@ -18,17 +19,23 @@ queue()
 // In meters
 var clusteringThreshold = 2000;
 
-function ready(error, sa1, boothdata, votes, tpp, sa1data) {
+function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
   sa1 = JSON.parse(sa1);
+  australia = JSON.parse(australia);
   boothdata = d3.csv.parse(boothdata);
   votes = d3.csv.parse(votes);
   tpp = d3.csv.parse(tpp);
   sa1data = d3.csv.parse(sa1data);
 
   var geo = topojson.feature(sa1, sa1.objects.sa1).features;
+  var ausGeo = topojson.feature(australia, australia.objects.australia);
   var xExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][0]); });
   var yExtent = d3.extent(geo, function(d) { return (d.geometry.coordinates[0][0][1]); });
   var extent = [[ xExtent[0] - 10, yExtent[0] - 10 ], [ xExtent[1] + 20, yExtent[1] + 10 ]];
+
+  var ausPolygons = [];
+  unwrapToPolygon(ausGeo, ausPolygons);
+  ausPolygons.map(d3.geom.polygon);
 
   boothdata = boothdata.map(function(booth) {
     return {
@@ -109,11 +116,93 @@ function ready(error, sa1, boothdata, votes, tpp, sa1data) {
     .clipExtent(extent)
     (clustered.values());
 
+
+  var copyPolygon = function(original) {
+    var copy = [];
+    original.forEach(function(d) { copy.push(d); });
+    copy = d3.geom.polygon(copy);
+    return copy;
+  };
+
+  var getBounds = function(polygon) {
+    var x1 = Infinity,
+        y1 = Infinity,
+        x2 = -Infinity,
+        y2 = -Infinity;
+
+    polygon.forEach(function(point) {
+      x1 = Math.min(x1, point[0]);
+      y1 = Math.min(y1, point[1]);
+      x2 = Math.max(x2, point[0]);
+      y2 = Math.max(y2, point[1]);
+    });
+
+    return [[x1, y1], [x2, y2]];
+  };
+
+  var boundsOverlap = function(a, b) {
+    return (a[0][0] < b[1][0] &&
+            a[1][0] > b[0][0] &&
+            a[0][1] < b[1][1] &&
+            a[1][1] > b[0][1]);
+  };
+
+  // We need to use our voronoi areas as clipping planes, since d3 uses the
+  // Weiler-Atherton polygon clipping algorithm, and geographic geometry will
+  // not be convex.  In this way, we'll cut up Australia into our
+  // voronoi-shaped bits. This kind of reverses our representation. Previously
+  // we had a map of australia with a voronoi overlay. When we clip australia
+  // to the voronoi, we'll end up with voronoi-shaped pieces of Australia.
+  //ausPolygons.forEach(function(d) { d.bounds = getBounds(d); });
+
+  var clipped = d3.map();
+  polygons.forEach(function(voronoi) {
+
+    // Turn the voronoi polygon into a d3.geom.polygon
+    var clip_plane = d3.geom.polygon(voronoi);
+
+    // We'll use this to pick up the pieces of the australian features
+    var clip_plane_id = voronoi.point.id;
+
+    // The clipped features
+    var features = [];
+
+    //var clip_bounds = getBounds(voronoi);
+
+    ausPolygons.forEach(function(feature) {
+      //var feature_bounds = feature.bounds;
+
+      //if (!boundsOverlap(clip_bounds, feature_bounds)) return;
+      // Clone the feature so we don't destroy the original
+      var subject = copyPolygon(feature);
+
+      clip_plane.clip(subject);
+
+      // If we have an element in the clipped polygon, we should be good
+      if (subject[0]) features.push(subject);
+    });
+
+    // Associate voronoi ID with features
+    clipped.set(clip_plane_id, features);
+  });
+
+  e();
+
+
+
   // Transform the polygons into a map
   var result = d3.map();
   polygons.forEach(function(polygon) {
     var point = polygon.point;
     point.voronoi = [];
+    polygon = d3.geom.polygon(polygon);
+    ausPolygons.forEach(function(feature) {
+      var copy = [];
+      feature.forEach(function(d) { copy.push(d); });
+      copy = d3.geom.polygon(copy);
+      polygon.clip(copy);
+      //console.log(polygon.area(), copy.area());
+    });
     polygon.forEach(function(p) { point.voronoi.push(p); });
     result.set(point.id, point);
   });
@@ -253,5 +342,12 @@ function pointInPolygon (point, vs) {
     if (intersect) inside = !inside;
   }
   return inside;
+}
+
+function unwrapToPolygon(geometry, polygons) {
+  if (geometry.type === "FeatureCollection") geometry.features.forEach(function(feature) { unwrapToPolygon(feature, polygons); });
+  if (geometry.type === "Feature") unwrapToPolygon(geometry.geometry, polygons);
+  if (geometry.type === "MultiPolygon") geometry.coordinates.forEach(function(coord) { coord.forEach(function(polygon) { polygon.id = geometry.id; polygons.push(polygon); }); });
+  if (geometry.type === "Polygon") geometry.coordinates.forEach(function(polygon) { polygons.push(polygon); });
 }
 

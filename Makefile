@@ -18,6 +18,9 @@ sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 data/sa1.json: sources/SA1_2011_AUST.shp
 	$(TOPOJSON) --id-property SA1_7DIGIT -o $@ -- sa1=$^
 
+data/australia.json: sources/STE_2011_AUST.shp
+	$(TOPOJSON) --id-property STATE_CODE -o $@ -- australia=$^
+
 sources/pollingbooths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/GeneralPollingPlacesDownload-17496.csv' \
 		| gtail -n +2 > $@
@@ -25,7 +28,7 @@ sources/pollingbooths.csv:
 data/booths.csv: sources/pollingbooths.csv
 	node parse_booths.js
 
-data/voronoi.json: data/booths.csv data/sa1.json data/votes.csv data/sa1.csv
+data/voronoi.json: data/booths.csv data/sa1.json data/australia.json data/votes.csv data/sa1.csv
 	node valanalys.js
 
 data/combined.topo.json: data/voronoi.json sources/SED_2011_AUST.shp

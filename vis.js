@@ -17,12 +17,6 @@ var ractive = new Ractive({
       data.features = data.features
         .filter(function(d) { return d.properties.demographics.population > 0; });
 
-      var map = d3.select("#map").append("svg").append("g");
-      //var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
-      var projection = null;
-      var path = d3.geo.path().projection(projection);
-      ex(path, "path");
-
       cf = crossfilter(data.features);
       all = cf.groupAll();
       //    coalition = cf.dimension(function(d) { return ((d.votes.party.LP || 0) + (d.votes.party.LNP || 0) + (d.votes.party.NP || 0) + (d.votes.party.CLR || 0)); }),
@@ -112,6 +106,9 @@ var ractive = new Ractive({
 
             chartInstance = dc.barChart(div.node());
 
+            var domain = [0, 100];
+            var domainExtent = Math.abs(domain[0] - domain[1]);
+
             chartInstance
               .margins({left: 50, top: 50, right: 50, bottom: 50})
               .elasticY(true)
@@ -120,9 +117,9 @@ var ractive = new Ractive({
               .group(group)
               .centerBar(false)
               .gap(1)
-              .colors(d3.range(50).map(d3.scale.linear().domain([0,50]).range(["red", "blue"])))
-              .colorAccessor(function(d, i){ console.log(arguments); return i; })
-              .x(d3.scale.linear().domain([0, 100]))
+              .colors(d3.range(domainExtent).map(d3.scale.linear().domain(domain).range(["red", "yellow"])))
+              .colorAccessor(function(d, i){ return i; })
+              .x(d3.scale.linear().domain(domain))
               .y(d3.scale.pow().domain([0, 150]));
           });
         };
@@ -161,6 +158,9 @@ var ractive = new Ractive({
 
             chartInstance = dc.barChart(div.node());
 
+            var domain = [0, 100];
+            var domainExtent = Math.abs(domain[0] - domain[1]);
+
             chartInstance
               .margins({left: 50, top: 50, right: 50, bottom: 50})
               .elasticY(true)
@@ -169,9 +169,9 @@ var ractive = new Ractive({
               .group(group)
               .centerBar(false)
               .gap(1)
-              .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
+              .colors(d3.range(domainExtent).map(d3.scale.linear().domain(domain).range(["steelblue", "red"])))
               .colorAccessor(function(d, i){ return i; })
-              .x(d3.scale.linear().domain([0, 100]))
+              .x(d3.scale.linear().domain(domain))
               .y(d3.scale.pow().domain([0, 150]))
               .xAxis().tickFormat(function(v) {return v + "%"; });
           });
@@ -200,107 +200,21 @@ var ractive = new Ractive({
 
       features = cf.dimension(function(d) { return d; });
 
-      age = cf.dimension(function(d) { return d.properties.demographics.median_age; });
-      ageGroup = age.group();
-
-      christians = cf.dimension(function(d) { return d.properties.demographics.christians / d.properties.demographics.population * 100; });
-      christiansGroup = christians.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.christians; });
-
-      coalitionVotes = cf.dimension(function(d) { return (d.properties.votes.tpp.coalition || 0) / d.properties.demographics.population * 100; });
-      coalitionVotesGroup = coalitionVotes.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.population; });
-
-      migrants = cf.dimension(function(d) { return d.properties.demographics.migrants / d.properties.demographics.population * 100; });
-      migrantsGroup = migrants.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.migrants; });
-
-      year12 = cf.dimension(function(d) { return d.properties.demographics.year_12_equivalent / d.properties.demographics.population * 100; });
-      year12Group = year12.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.year_12_equivalent; });
-
-      childless = cf.dimension(function(d) { return d.properties.demographics.couple_childless / d.properties.demographics.population * 100; });
-      childlessGroup = childless.group(function(d) { return Math.floor(d); }).reduceSum(function(d) { return d.properties.demographics.couple_childless; });
-
-      coalitionChart = dc.barChart("#coalition")
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(coalitionVotes)
-        .group(coalitionVotesGroup)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .y(d3.scale.pow().domain([0, 150]))
-        .xAxis().tickFormat(function(v) {return v + "%"; });
-
       d3.select("#labor")
         .call(percentageChart()
               .crossfilter(cf)
-              .key(function(d) { return d.properties.demographics.no_internet; }));
+              .key(function(d) { return d.properties.votes.tpp.labor; }));
+
+      d3.select("#year12")
+        .call(percentageChart()
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.demographics.year_12_equivalent; }));
 
       d3.select("#age")
         .call(medianChart()
               .crossfilter(cf)
               .key(function(d) { return d.properties.demographics.median_age; }));
 
-
-      christiansChart = dc.barChart("#christians");
-
-      christiansChart
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(christians)
-        .group(christiansGroup)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .xAxis().tickFormat(function(v) {return v + "%"; });
-
-      migrantsChart = dc.barChart("#migrants")
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(migrants)
-        .group(migrantsGroup)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .y(d3.scale.pow().domain([0, 150]));
-
-      year12Chart = dc.barChart("#year12");
-
-      year12Chart
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(year12)
-        .group(year12Group)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .xAxis().tickFormat(function(v) {return v + "%"; });
-
-
-      childlessChart = dc.barChart("#childless");
-
-      childlessChart
-        .margins({left: 50, top: 50, right: 50, bottom: 50})
-        .elasticY(true)
-        .width(500)
-        .dimension(childless)
-        .group(childlessGroup)
-        .centerBar(false)
-        .gap(1)
-        .colors(d3.range(20).map(d3.scale.linear().domain([0,50]).range(["#00cc00", "#a60000"])))
-        .colorAccessor(function(d, i){ return i; })
-        .x(d3.scale.linear().domain([0, 100]))
-        .xAxis().tickFormat(function(v) {return v + "%"; });
 
 
       var svg = d3.select("#votes").append("svg").style("height", 200);
@@ -311,15 +225,24 @@ var ractive = new Ractive({
       console.log(electorates);
       var clip = d3.select("svg").append("defs").append("mask").attr("id", "aus");
 
-      clip.selectAll("rect").data([0]).enter().append("rect")
-        .attr({
-          x: 0,
-          y: 0,
-          width: 1000,
-          height: 1000
-        })
-        .style("fill", "white");
-      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
+      self.observe("map", function(prev, curr) {
+        if (!curr) return;
+
+        var map = d3.select("#map").append("svg").append("g");
+        //var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
+        var projection = null;
+        var path = d3.geo.path().projection(projection);
+        ex(path, "path");
+
+        clip.selectAll("rect").data([0]).enter().append("rect")
+          .attr({
+            x: 0,
+            y: 0,
+            width: 1000,
+            height: 1000
+          })
+          .style("fill", "white");
+        clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
       //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
       //d3.select("svg").append("rect")
         //.attr({
@@ -332,73 +255,74 @@ var ractive = new Ractive({
         //.attr("mask", "url(#aus)");
 
 
-      map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
-      dc._renderlet = function() {
-        var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
-        f.exit().remove();
-        f.enter().append("path").attr("class", "land").attr("d", path);
+        map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
+        dc._renderlet = function() {
+          var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
+          f.exit().remove();
+          f.enter().append("path").attr("class", "land").attr("d", path);
 
 
 
 
-        var rep = count();
-        var data = d3.entries(votesGroup.all()[0].value).filter(function(d) { return d.value > 1e-5; });
-        var scale = d3.scale.pow().domain([0, 1000000]).range([0, 100]);
+          var rep = count();
+          var data = d3.entries(votesGroup.all()[0].value).filter(function(d) { return d.value > 1e-5; });
+          var scale = d3.scale.pow().domain([0, 1000000]).range([0, 100]);
 
-        var color = d3.scale.ordinal().domain(["greens", "coalition", "labor", "informal", "pup", "kap"]).range(["#10C25B", "#080CAB", "#990000", "#000", "#ff0", "#f00"]);
+          var color = d3.scale.ordinal().domain(["greens", "coalition", "labor", "informal", "pup", "kap"]).range(["#10C25B", "#080CAB", "#990000", "#000", "#ff0", "#f00"]);
 
-        var arc = d3.svg.arc()
-          .innerRadius(70)
-          .outerRadius(100);
+          var arc = d3.svg.arc()
+            .innerRadius(70)
+            .outerRadius(100);
 
-        var pie = d3.layout.pie()
-        .sort(function(a, b) { if (a.key === "coalition") return 1; })
-        .value(function(d) { return d.value; });
-
-
-        var g = svg.selectAll(".arc")
-          .data(pie(data), function(d) { return d.data.key; });
+          var pie = d3.layout.pie()
+          .sort(function(a, b) { if (a.key === "coalition") return 1; })
+          .value(function(d) { return d.value; });
 
 
-        g.exit().remove();
-
-        g
-        .select("path")
-        .attr("d", arc)
-        .style("fill", function(d) { return color(d.data.key);});
-
-        g.enter().append("g")
-        .attr("class", "arc")
-        .append("path");
+          var g = svg.selectAll(".arc")
+            .data(pie(data), function(d) { return d.data.key; });
 
 
+          g.exit().remove();
 
-        g.attr("transform", "translate(100, 100)");
+          g
+          .select("path")
+          .attr("d", arc)
+          .style("fill", function(d) { return color(d.data.key);});
 
-        var rect = svg.selectAll("rect.fill").data([rep]);
-        rect.enter().append("rect").attr("class", "fill");
-        rect.attr({
-          width: rep,
-          height: 20,
-          x: 320,
-          y: 85
-        }).style("fill", "steelblue");
-
-        var outline = svg.selectAll("rect.stroke").data([rep]);
-        outline.enter().append("rect").attr("class", "stroke");
-        outline.attr({
-          width: 100,
-          height: 20,
-          x: 320.5,
-          y: 85.5
-        })
-        .style("fill", "none")
-        .style("stroke", "#222")
-        .style("stroke-width", 1);
+          g.enter().append("g")
+          .attr("class", "arc")
+          .append("path");
 
 
-        d3.select(".count").text("Australians represented: " + rep + "%");
-      }
+
+          g.attr("transform", "translate(100, 100)");
+
+          var rect = svg.selectAll("rect.fill").data([rep]);
+          rect.enter().append("rect").attr("class", "fill");
+          rect.attr({
+            width: rep,
+            height: 20,
+            x: 320,
+            y: 85
+          }).style("fill", "steelblue");
+
+          var outline = svg.selectAll("rect.stroke").data([rep]);
+          outline.enter().append("rect").attr("class", "stroke");
+          outline.attr({
+            width: 100,
+            height: 20,
+            x: 320.5,
+            y: 85.5
+          })
+          .style("fill", "none")
+          .style("stroke", "#222")
+          .style("stroke-width", 1);
+
+
+          d3.select(".count").text("Australians represented: " + rep + "%");
+        };
+      });
 
       dc.chartRegistry.list().forEach(function(chart) { chart.transitionDuration(0); });
       dc.constants.EVENT_DELAY = 0;

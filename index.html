@@ -35,20 +35,22 @@
   <div id="ractive"></div>
 
   <script id='template' type='text/ractive'>
-    <!--<div id="coalition"><strong>Coalition</strong></div>-->
-    <div id="labor"><strong>Labor</strong></div>
-    <div id="coalition"><strong>Coalition</strong></div>
     <input type="checkbox" checked="{{tpp}}" />TPP
     <input type="checkbox" checked="{{informal}}" />Informal
+    <input type="checkbox" checked="{{map}}" />Map
     <div id="votes"></div>
     <span class="count"></span>
-    <div id="christians"><strong>Christians</strong></div>
+    <div id="labor"><strong>Labor</strong></div>
+    <!--<div id="coalition"><strong>Coalition</strong></div>-->
+    <!--<div id="christians"><strong>Christians</strong></div>-->
     <div id="year12"><strong>Year 12 or equivalent completed</strong></div>
-    <div id="childless"><strong>Couples without children</strong></div>
-    <div id="greens"><strong>Greens votes</strong></div>
+    <!--<div id="childless"><strong>Couples without children</strong></div>-->
+    <!--<div id="greens"><strong>Greens votes</strong></div>-->
     <div id="age"><strong>Median Age</strong></div>
-    <div id="migrants"><strong>Migrants</strong></div>
-    <div id="map"></div>
+    <!--<div id="migrants"><strong>Migrants</strong></div>-->
+    {{#map}}
+      <div id="map"></div>
+    {{/map}}
   </script>
 <script src="vendor/d3/d3.js"></script>
 <script src="vendor/topojson/topojson.js"></script>

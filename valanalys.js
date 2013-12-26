@@ -149,26 +149,34 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
   };
 
   // We need to use our voronoi areas as clipping planes, since d3 uses the
-  // Weiler-Atherton polygon clipping algorithm, and geographic geometry will
-  // not be convex.  In this way, we'll cut up Australia into our
+  // Sutherland–Hodgman polygon clipping algorithm, and geographic geometry
+  // will not be convex.  In this way, we'll cut up Australia into our
   // voronoi-shaped bits. This kind of reverses our representation. Previously
   // we had a map of australia with a voronoi overlay. When we clip australia
   // to the voronoi, we'll end up with voronoi-shaped pieces of Australia.
+  //
+  // This still does not work, as features that are concave and extend out and
+  // around the clip polygon get collapsed around the edges. ie. around port
+  // phillip bay, we get 0-width lines going places. Need to figure out how to
+  // do this, perhaps implement a different clipping algorithm
   ausPolygons.forEach(function(d) { d.bounds = getBounds(d); });
 
   var clipped = d3.map();
+  var i = 0;
   polygons.forEach(function(voronoi) {
     // Turn the voronoi polygon into a d3.geom.polygon
     var clip_plane = d3.geom.polygon(voronoi);
 
     // We'll use this to pick up the pieces of the australian features
     var clip_plane_id = voronoi.point.id;
+    if (clip_plane_id !== 3512) return;
 
     // The clipped features
     var features = [];
 
     var clip_bounds = getBounds(voronoi);
 
+    console.log(i + "/" + polygons.length, "Clipping", clip_plane_id);
     ausPolygons.forEach(function(feature) {
       if (!boundsOverlap(clip_bounds, feature.bounds)) return;
       // Clone the feature so we don't destroy the original
@@ -177,11 +185,17 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
       clip_plane.clip(subject);
 
       // If we have an element in the clipped polygon, we should be good
-      if (subject[0]) features.push(subject);
+      if (subject[0]) {
+        //console.log("SUBJECT", [subject]);
+        features.push([subject]);
+      }
+      //clip_plane.push(clip_plane[0]);
+      //features.push(clip_plane);
     });
 
     // Associate voronoi ID with features
     clipped.set(clip_plane_id, features);
+    i++;
   });
 
   // Transform the polygons into a map
@@ -261,6 +275,7 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
 
   var voronoi = geojson();
   result.values().forEach(function(result) {
+    if (result.id !== 3512) return;
     if (!result.tracts.length) return;
     voronoi.features.push(polygonFeature(result.id, {
       booths: result.booths,
@@ -297,7 +312,7 @@ function polygonFeature (id, properties, coordinates) {
     "type": "Feature",
     "geometry": {
       "type": "MultiPolygon",
-      "coordinates": [ coordinates ],
+      "coordinates": coordinates,
     },
     "properties": properties,
     "id": id
@@ -340,7 +355,7 @@ function pointInPolygon (point, vs) {
 function unwrapToPolygon(geometry, polygons) {
   if (geometry.type === "FeatureCollection") geometry.features.forEach(function(feature) { unwrapToPolygon(feature, polygons); });
   if (geometry.type === "Feature") unwrapToPolygon(geometry.geometry, polygons);
-  if (geometry.type === "MultiPolygon") geometry.coordinates.forEach(function(coord) { coord.forEach(function(polygon) { polygon.id = geometry.id; polygons.push(polygon); }); });
+  if (geometry.type === "MultiPolygon") geometry.coordinates.forEach(function(coord) { coord.forEach(function(polygon) { polygons.push(polygon); }); });
   if (geometry.type === "Polygon") geometry.coordinates.forEach(function(polygon) { polygons.push(polygon); });
 }
 

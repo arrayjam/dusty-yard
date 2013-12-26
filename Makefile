@@ -18,8 +18,8 @@ sources/SA1_2011_AUST.shp: sources/2011_SA1_shape.zip
 data/sa1.json: sources/SA1_2011_AUST.shp
 	$(TOPOJSON) --id-property SA1_7DIGIT -o $@ -- sa1=$^
 
-data/australia.json: sources/STE_2011_AUST.shp
-	$(TOPOJSON) --id-property STATE_CODE -o $@ -- australia=$^
+data/australia.json: sources/all.shp
+	$(TOPOJSON) -q 1e5 --id-property STATE_CODE -o $@ -- australia=$^
 
 sources/pollingbooths.csv:
 	curl 'http://vtr.aec.gov.au/Downloads/GeneralPollingPlacesDownload-17496.csv' \
@@ -36,7 +36,7 @@ data/combined.topo.json: data/voronoi.json sources/SED_2011_AUST.shp
 		-q 1e5 \
 		-s 0.025 \
 		-o $@ \
-		--projection 'd3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18])' \
+		--projection 'd3.geo.albers().rotate([-132.5, 0]).center([144.8631, -37.973]).parallels([-36, -18])' \
 		-p \
 		-- \
 		voronoi=data/voronoi.json \

@@ -153,7 +153,7 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
   // voronoi-shaped bits. This kind of reverses our representation. Previously
   // we had a map of australia with a voronoi overlay. When we clip australia
   // to the voronoi, we'll end up with voronoi-shaped pieces of Australia.
-  //ausPolygons.forEach(function(d) { d.bounds = getBounds(d); });
+  ausPolygons.forEach(function(d) { d.bounds = getBounds(d); });
 
   var clipped = d3.map();
   polygons.forEach(function(voronoi) {
@@ -167,12 +167,12 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
     // The clipped features
     var features = [];
 
-    //var clip_bounds = getBounds(voronoi);
+    var clip_bounds = getBounds(voronoi);
 
     ausPolygons.forEach(function(feature) {
-      //var feature_bounds = feature.bounds;
+      var feature_bounds = feature.bounds;
 
-      //if (!boundsOverlap(clip_bounds, feature_bounds)) return;
+      if (!boundsOverlap(clip_bounds, feature_bounds)) return;
       // Clone the feature so we don't destroy the original
       var subject = copyPolygon(feature);
 
@@ -186,23 +186,20 @@ function ready(error, sa1, australia, boothdata, votes, tpp, sa1data) {
     clipped.set(clip_plane_id, features);
   });
 
-  e();
-
-
 
   // Transform the polygons into a map
   var result = d3.map();
   polygons.forEach(function(polygon) {
     var point = polygon.point;
     point.voronoi = [];
-    polygon = d3.geom.polygon(polygon);
-    ausPolygons.forEach(function(feature) {
-      var copy = [];
-      feature.forEach(function(d) { copy.push(d); });
-      copy = d3.geom.polygon(copy);
-      polygon.clip(copy);
+    //polygon = d3.geom.polygon(polygon);
+    //ausPolygons.forEach(function(feature) {
+      //var copy = [];
+      //feature.forEach(function(d) { copy.push(d); });
+      //copy = d3.geom.polygon(copy);
+      //polygon.clip(copy);
       //console.log(polygon.area(), copy.area());
-    });
+    //});
     polygon.forEach(function(p) { point.voronoi.push(p); });
     result.set(point.id, point);
   });

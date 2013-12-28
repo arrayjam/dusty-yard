@@ -11,8 +11,8 @@ var ractive = new Ractive({
     d3.json("data/combined.topo.json", function(err, data) {
       ex(data, "data");
       electorates = topojson.feature(data, data.objects.electorates);
-      //mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a !== b; });
-      mesh = topojson.mesh(data, data.objects.electorates);
+      mesh = topojson.mesh(data, data.objects.electorates, function(a, b) { return a === b; });
+      //mesh = topojson.mesh(data, data.objects.electorates);
       data = topojson.feature(data, data.objects.voronoi);
       data.features = data.features
         .filter(function(d) { return d.properties.demographics.population > 0; });
@@ -221,23 +221,23 @@ var ractive = new Ractive({
         return all.reduceSum(function(d) { return d.properties.demographics.population; }).value() / totalPopulation * 100;
       };
       console.log(electorates);
-      var clip = d3.select("svg").append("defs").append("mask").attr("id", "aus");
 
-      var map = d3.select("#map").append("svg").append("g");
+      var map = d3.select("#map").append("svg").append("defs").append("mask").attr("id", "voronoi");
+      //var clip = d3.select("#map").append("defs").append("mask").attr("id", "aus");
       //var projection = d3.geo.albers().rotate([-132.5, 0]).center([0, -26.5]).parallels([-36, -18]);
       var projection = null;
       var path = d3.geo.path().projection(projection);
       ex(path, "path");
 
-      clip.selectAll("rect").data([0]).enter().append("rect")
-        .attr({
-          x: 0,
-          y: 0,
-          width: 1000,
-          height: 1000
-        })
-        .style("fill", "white");
-      clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
+      //clip.selectAll("rect").data([0]).enter().append("rect")
+        //.attr({
+          //x: 0,
+          //y: 0,
+          //width: 1000,
+          //height: 1000
+        //})
+        //.style("fill", "white");
+      //clip.selectAll("path").data(electorates.features).enter().append("path").attr("d", path).style("fill", "black").style("stroke", "black");
     //clip.append("path").datum(mesh).attr("d", path).style("fill", "white");
     //d3.select("svg").append("rect")
       //.attr({
@@ -250,26 +250,32 @@ var ractive = new Ractive({
       //.attr("mask", "url(#aus)");
 
 
-      map.append("path").datum(mesh).attr("class", "mesh").attr("d", path);
+      d3.select("#map svg").append("g").attr("mask", "url(#voronoi)").selectAll("path.electorates").data(electorates.features).enter().append("path").attr("class", "electorates").attr("d", path);
+      d3.select("#map svg").append("path").datum(mesh).attr("class", "outline").attr("d", path);
       featuresMap = d3.map();
       features = cf.dimension(function(d) { return d; });
       featuresGroup = features.group().reduce(
         function (p, d) {
-          featuresMap.get(d.id).style.fill = "steelblue";
+          var fe = featuresMap.get(d.id);
+          fe.style.fill = "white";
+          fe.style.stroke = "white";
           return p;
         },
         function (p, d) {
-          featuresMap.get(d.id).style.fill = "none";
+          var fe = featuresMap.get(d.id);
+          fe.style.fill = "black";
+          fe.style.stroke = "black";
           return p;
         },
         function () {
           return {};
         }
       );
-      var f = map.selectAll("path.land").data(features.top(Infinity), function(d) { return d.id; });
+      var f = map.selectAll("path").data(features.top(Infinity), function(d) { return d.id; });
       f.exit().remove();
       f.enter().append("path").attr("class", "land").attr("d", path);
       f.each(function(d) { featuresMap.set(d.id, this); });
+      featuresGroup.top(Infinity);
       dc._renderlet = function() {
 
 

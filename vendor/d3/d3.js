@@ -1,6 +1,6 @@
 d3 = function() {
   var d3 = {
-    version: "3.3.11"
+    version: "3.3.10"
   };
   if (!Date.now) Date.now = function() {
     return +new Date();
@@ -1937,11 +1937,11 @@ d3 = function() {
     var reFormat = new RegExp('["' + delimiter + "\n]"), delimiterCode = delimiter.charCodeAt(0);
     function dsv(url, row, callback) {
       if (arguments.length < 3) callback = row, row = null;
-      var xhr = d3_xhr(url, mimeType, row == null ? response : typedResponse(row), callback);
+      var xhr = d3.xhr(url, mimeType, callback);
       xhr.row = function(_) {
         return arguments.length ? xhr.response((row = _) == null ? response : typedResponse(_)) : row;
       };
-      return xhr;
+      return xhr.row(row);
     }
     function response(request) {
       return dsv.parse(request.responseText);
@@ -2387,16 +2387,24 @@ d3 = function() {
     return [ vector[0] * k, vector[1] * k, vector[2] * k ];
   }
   function d3_geo_cartesianNormalize(d) {
-    var l = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    var l = Math.sqrt(d3_geo_cartesianDot(d, d));
     d[0] /= l;
     d[1] /= l;
     d[2] /= l;
+  }
+  function d3_geo_cartesianEqual(a, b) {
+    var dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    return dx * dx + dy * dy + dz * dz < ε2 * ε2;
   }
   function d3_geo_spherical(cartesian) {
     return [ Math.atan2(cartesian[1], cartesian[0]), d3_asin(cartesian[2]) ];
   }
   function d3_geo_sphericalEqual(a, b) {
-    return abs(a[0] - b[0]) < ε && abs(a[1] - b[1]) < ε;
+    return abs(a[1] - b[1]) < ε && (abs(abs(a[1]) - π / 2) < ε || d3_geo_sphericalLongitudeDifference(a[0], b[0]) < ε);
+  }
+  function d3_geo_sphericalLongitudeDifference(λ0, λ1) {
+    var dλ = abs(λ1 - λ0);
+    return dλ > π ? 2 * π - dλ : dλ;
   }
   d3.geo.bounds = function() {
     var λ0, φ0, λ1, φ1, λ_, λ__, φ__, p0, dλSum, ranges, range;
@@ -2619,30 +2627,30 @@ d3 = function() {
   function d3_true() {
     return true;
   }
-  function d3_geo_clipPolygon(segments, compare, clipStartInside, interpolate, listener) {
+  function d3_geo_clipPolygonRejoin(segments, compare, clipStartInside, interpolate, listener) {
     var subject = [], clip = [];
     segments.forEach(function(segment) {
       if ((n = segment.length - 1) <= 0) return;
       var n, p0 = segment[0], p1 = segment[n];
-      if (d3_geo_sphericalEqual(p0, p1)) {
+      if (abs(p1[0] - p0[0]) < ε && abs(p1[1] - p0[1]) < ε) {
         listener.lineStart();
         for (var i = 0; i < n; ++i) listener.point((p0 = segment[i])[0], p0[1]);
         listener.lineEnd();
         return;
       }
-      var a = new d3_geo_clipPolygonIntersection(p0, segment, null, true), b = new d3_geo_clipPolygonIntersection(p0, null, a, false);
+      var a = new d3_geo_clipPolygonRejoinIntersection(p0, segment, null, true), b = new d3_geo_clipPolygonRejoinIntersection(p0, null, a, false);
       a.o = b;
       subject.push(a);
       clip.push(b);
-      a = new d3_geo_clipPolygonIntersection(p1, segment, null, false);
-      b = new d3_geo_clipPolygonIntersection(p1, null, a, true);
+      a = new d3_geo_clipPolygonRejoinIntersection(p1, segment, null, false);
+      b = new d3_geo_clipPolygonRejoinIntersection(p1, null, a, true);
       a.o = b;
       subject.push(a);
       clip.push(b);
     });
     clip.sort(compare);
-    d3_geo_clipPolygonLinkCircular(subject);
-    d3_geo_clipPolygonLinkCircular(clip);
+    d3_geo_clipPolygonRejoinLinkCircular(subject);
+    d3_geo_clipPolygonRejoinLinkCircular(clip);
     if (!subject.length) return;
     for (var i = 0, entry = clipStartInside, n = clip.length; i < n; ++i) {
       clip[i].e = entry = !entry;
@@ -2678,7 +2686,7 @@ d3 = function() {
       listener.lineEnd();
     }
   }
-  function d3_geo_clipPolygonLinkCircular(array) {
+  function d3_geo_clipPolygonRejoinLinkCircular(array) {
     if (!(n = array.length)) return;
     var n, i = 0, a = array[0], b;
     while (++i < n) {
@@ -2689,7 +2697,7 @@ d3 = function() {
     a.n = b = array[0];
     b.p = a;
   }
-  function d3_geo_clipPolygonIntersection(point, points, other, entry) {
+  function d3_geo_clipPolygonRejoinIntersection(point, points, other, entry) {
     this.x = point;
     this.z = points;
     this.o = other;
@@ -2697,7 +2705,7 @@ d3 = function() {
     this.v = false;
     this.n = this.p = null;
   }
-  function d3_geo_clip(pointVisible, clipLine, interpolate, clipStart) {
+  function d3_geo_clip(pointVisible, clipLine, interpolate, clipStart, sort) {
     return function(rotate, listener) {
       var line = clipLine(listener), rotatedClipStart = rotate.invert(clipStart[0], clipStart[1]);
       var clip = {
@@ -2719,7 +2727,7 @@ d3 = function() {
           segments = d3.merge(segments);
           var clipStartInside = d3_geo_pointInPolygon(rotatedClipStart, polygon);
           if (segments.length) {
-            d3_geo_clipPolygon(segments, d3_geo_clipSort, clipStartInside, interpolate, listener);
+            d3_geo_clipPolygonRejoin(segments, sort, clipStartInside, interpolate, listener);
           } else if (clipStartInside) {
             listener.lineStart();
             interpolate(null, null, 1, listener);
@@ -2752,19 +2760,18 @@ d3 = function() {
         clip.point = point;
         line.lineEnd();
       }
-      var segments;
-      var buffer = d3_geo_clipBufferListener(), ringListener = clipLine(buffer), polygon, ring;
-      function pointRing(λ, φ) {
+      var segments, buffer = d3_geo_clipBufferListener(), ringListener = clipLine(buffer), polygon, ring;
+      function pointRing(λ, φ, close) {
         ring.push([ λ, φ ]);
         var point = rotate(λ, φ);
-        ringListener.point(point[0], point[1]);
+        ringListener.point(point[0], point[1], close);
       }
       function ringStart() {
         ringListener.lineStart();
         ring = [];
       }
       function ringEnd() {
-        pointRing(ring[0][0], ring[0][1]);
+        pointRing(ring[0][0], ring[0][1], true);
         ringListener.lineEnd();
         var clean = ringListener.clean(), ringSegments = buffer.buffer(), segment, n = ringSegments.length;
         ring.pop();
@@ -2794,8 +2801,10 @@ d3 = function() {
       lineStart: function() {
         lines.push(line = []);
       },
-      point: function(λ, φ) {
-        line.push([ λ, φ ]);
+      point: function(λ, φ, i, t) {
+        var point = [ λ, φ ];
+        if (arguments.length > 2) point.index = i, point.t = t;
+        line.push(point);
       },
       lineEnd: d3_noop,
       buffer: function() {
@@ -2812,6 +2821,7 @@ d3 = function() {
   function d3_geo_clipSort(a, b) {
     return ((a = a.x)[0] < 0 ? a[1] - halfπ - ε : halfπ - a[1]) - ((b = b.x)[0] < 0 ? b[1] - halfπ - ε : halfπ - b[1]);
   }
+  d3.geo.pointInPolygon = d3_geo_pointInPolygon;
   function d3_geo_pointInPolygon(point, polygon) {
     var meridian = point[0], parallel = point[1], meridianNormal = [ Math.sin(meridian), -Math.cos(meridian), 0 ], polarAngle = 0, winding = 0;
     d3_geo_areaRingSum.reset();
@@ -2841,7 +2851,7 @@ d3 = function() {
     }
     return (polarAngle < -ε || polarAngle < ε && d3_geo_areaRingSum < 0) ^ winding & 1;
   }
-  var d3_geo_clipAntimeridian = d3_geo_clip(d3_true, d3_geo_clipAntimeridianLine, d3_geo_clipAntimeridianInterpolate, [ -π, -π / 2 ]);
+  var d3_geo_clipAntimeridian = d3_geo_clip(d3_geo_clipAntimeridianVisible, d3_geo_clipAntimeridianLine, d3_geo_clipAntimeridianInterpolate, [ -π, -π / 2 ], d3_geo_clipSort);
   function d3_geo_clipAntimeridianLine(listener) {
     var λ0 = NaN, φ0 = NaN, sλ0 = NaN, clean;
     return {
@@ -2850,7 +2860,7 @@ d3 = function() {
         clean = 1;
       },
       point: function(λ1, φ1) {
-        var sλ1 = λ1 > 0 ? π : -π, dλ = abs(λ1 - λ0);
+        var sλ1 = λ1 > 0 ? π - ε : -π, dλ = abs(λ1 - λ0);
         if (abs(dλ - π) < ε) {
           listener.point(λ0, φ0 = (φ0 + φ1) / 2 > 0 ? halfπ : -halfπ);
           listener.point(sλ0, φ0);
@@ -2891,26 +2901,30 @@ d3 = function() {
       φ = direction * halfπ;
       listener.point(-π, φ);
       listener.point(0, φ);
-      listener.point(π, φ);
-      listener.point(π, 0);
-      listener.point(π, -φ);
+      listener.point(π - ε, φ);
+      listener.point(π - ε, 0);
+      listener.point(π - ε, -φ);
       listener.point(0, -φ);
       listener.point(-π, -φ);
       listener.point(-π, 0);
       listener.point(-π, φ);
     } else if (abs(from[0] - to[0]) > ε) {
-      var s = from[0] < to[0] ? π : -π;
+      var s0 = -π, s1 = π - ε, s = (from[0] < to[0] ? 1 : -1) * π;
+      if (to[0] < from[0]) s0 = π - ε, s1 = -π;
       φ = direction * s / 2;
-      listener.point(-s, φ);
+      listener.point(s0, φ);
       listener.point(0, φ);
-      listener.point(s, φ);
+      listener.point(s1, φ);
     } else {
       listener.point(to[0], to[1]);
     }
   }
+  function d3_geo_clipAntimeridianVisible(λ) {
+    return abs(abs(λ) - π) > ε;
+  }
   function d3_geo_clipCircle(radius) {
     var cr = Math.cos(radius), smallRadius = cr > 0, notHemisphere = abs(cr) > ε, interpolate = d3_geo_circleInterpolate(radius, 6 * d3_radians);
-    return d3_geo_clip(visible, clipLine, interpolate, smallRadius ? [ 0, -radius ] : [ -π, radius - π ]);
+    return d3_geo_clip(visible, clipLine, interpolate, smallRadius ? [ 0, -radius ] : [ -π, radius - π ], d3_geo_clipSort);
     function visible(λ, φ) {
       return Math.cos(λ) * Math.cos(φ) > cr;
     }
@@ -3058,6 +3072,146 @@ d3 = function() {
       return line;
     };
   }
+  d3.geo.distance = function(a, b) {
+    var Δλ = (b[0] - a[0]) * d3_radians, φ0 = a[1] * d3_radians, φ1 = b[1] * d3_radians, sinΔλ = Math.sin(Δλ), cosΔλ = Math.cos(Δλ), sinφ0 = Math.sin(φ0), cosφ0 = Math.cos(φ0), sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1), t;
+    return Math.atan2(Math.sqrt((t = cosφ1 * sinΔλ) * t + (t = cosφ0 * sinφ1 - sinφ0 * cosφ1 * cosΔλ) * t), sinφ0 * sinφ1 + cosφ0 * cosφ1 * cosΔλ);
+  };
+  function d3_geo_intersectSegment(from, to) {
+    this.from = from, this.to = to;
+    this.normal = d3_geo_cartesianCross(from, to);
+    this.fromNormal = d3_geo_cartesianCross(this.normal, from);
+    this.toNormal = d3_geo_cartesianCross(this.normal, to);
+  }
+  function d3_geo_intersect(a, b) {
+    var axb = d3_geo_cartesianCross(a.normal, b.normal);
+    d3_geo_cartesianNormalize(axb);
+    var a0 = d3_geo_cartesianDot(axb, a.fromNormal), a1 = d3_geo_cartesianDot(axb, a.toNormal), b0 = d3_geo_cartesianDot(axb, b.fromNormal), b1 = d3_geo_cartesianDot(axb, b.toNormal);
+    if (a0 > -ε2 && a1 < ε2 && b0 > -ε2 && b1 < ε2) return axb;
+    if (a0 < ε2 && a1 > -ε2 && b0 < ε2 && b1 > -ε2) {
+      axb[0] = -axb[0], axb[1] = -axb[1], axb[2] = -axb[2];
+      return axb;
+    }
+  }
+  function d3_geo_intersectPointOnLine(p, a) {
+    var a0 = d3_geo_cartesianDot(p, a.fromNormal), a1 = d3_geo_cartesianDot(p, a.toNormal);
+    p = d3_geo_cartesianDot(p, a.normal);
+    return Math.abs(p) < ε2 && (a0 > -ε2 && a1 < ε2 || a0 < ε2 && a1 > -ε2);
+  }
+  var d3_geo_intersectCoincident = {};
+  function d3_geo_clipPolygon(polygon) {
+    var segments = [];
+    polygon = polygon.map(function(ring) {
+      var cartesian0;
+      ring = ring.map(function(point, i) {
+        var cartesian = d3_geo_cartesian(point = [ point[0] * d3_radians, point[1] * d3_radians ]);
+        if (i) segments.push(new d3_geo_intersectSegment(cartesian0, cartesian));
+        cartesian0 = cartesian;
+        return point;
+      });
+      ring.pop();
+      return ring;
+    });
+    return d3_geo_clip(visible, clipLine, interpolate, polygon[0][0], d3_geo_clipPolygonSort);
+    function visible(λ, φ) {
+      return d3_geo_pointInPolygon([ λ, φ ], polygon);
+    }
+    function clipLine(listener) {
+      var point0, λ00, φ00, v00, v0, clean;
+      return {
+        lineStart: function() {
+          point0 = null;
+          clean = 1;
+        },
+        point: function(λ, φ, close) {
+          if (close) λ = λ00, φ = φ00;
+          var point = d3_geo_cartesian([ λ, φ ]), v = v0;
+          if (point0) {
+            var segment = new d3_geo_intersectSegment(point0, point), intersections = [];
+            for (var i = 0, j = 100; i < segments.length && j > 0; ++i) {
+              var s = segments[i], intersection = d3_geo_intersect(segment, s);
+              if (intersection) {
+                if (intersection === d3_geo_intersectCoincident || d3_geo_cartesianEqual(intersection, point0) || d3_geo_cartesianEqual(intersection, point) || d3_geo_cartesianEqual(intersection, s.from) || d3_geo_cartesianEqual(intersection, s.to)) {
+                  var t = 1e-4;
+                  λ = (λ + 3 * π + (Math.random() < .5 ? t : -t)) % (2 * π) - π;
+                  φ = Math.min(π / 2 - 1e-4, Math.max(1e-4 - π / 2, φ + (Math.random() < .5 ? t : -t)));
+                  segment = new d3_geo_intersectSegment(point0, point = d3_geo_cartesian([ λ, φ ]));
+                  i = -1, --j;
+                  intersections.length = 0;
+                  continue;
+                }
+                var spherical = d3_geo_spherical(intersection);
+                intersection.distance = d3_geo_clipPolygonDistance(point0, intersection);
+                intersection.index = i;
+                intersection.t = d3_geo_clipPolygonDistance(s.from, intersection);
+                intersection[0] = spherical[0], intersection[1] = spherical[1], intersection.pop();
+                intersections.push(intersection);
+              }
+            }
+            if (intersections.length) {
+              clean = 0;
+              intersections.sort(function(a, b) {
+                return a.distance - b.distance;
+              });
+              for (var i = 0; i < intersections.length; ++i) {
+                var intersection = intersections[i];
+                if (v = !v) {
+                  listener.lineStart();
+                  listener.point(intersection[0], intersection[1], intersection.index, intersection.t);
+                } else {
+                  listener.point(intersection[0], intersection[1], intersection.index, intersection.t);
+                  listener.lineEnd();
+                }
+              }
+            }
+            if (v) listener.point(λ, φ);
+          } else {
+            for (var i = 0, j = 100; i < segments.length && j > 0; ++i) {
+              var s = segments[i];
+              if (d3_geo_intersectPointOnLine(point, s)) {
+                var t = 1e-4;
+                λ = (λ + 3 * π + (Math.random() < .5 ? t : -t)) % (2 * π) - π;
+                φ = Math.min(π / 2 - 1e-4, Math.max(1e-4 - π / 2, φ + (Math.random() < .5 ? t : -t)));
+                point = d3_geo_cartesian([ λ, φ ]);
+                i = -1, --j;
+              }
+            }
+            if (v00 = v = visible(λ00 = λ, φ00 = φ)) listener.lineStart(), listener.point(λ, φ);
+          }
+          point0 = point, v0 = v;
+        },
+        lineEnd: function() {
+          if (v0) listener.lineEnd();
+        },
+        clean: function() {
+          return clean | (v00 && v0) << 1;
+        }
+      };
+    }
+    function interpolate(from, to, direction, listener) {
+      if (from == null) {
+        var n = polygon.length;
+        polygon.forEach(function(ring, i) {
+          ring.forEach(function(point) {
+            listener.point(point[0], point[1]);
+          });
+          if (i < n - 1) listener.lineEnd(), listener.lineStart();
+        });
+      } else if (from.index !== to.index && from.index != null && to.index != null) {
+        for (var i = from.index; i !== to.index; i = (i + direction + segments.length) % segments.length) {
+          var segment = segments[i], point = d3_geo_spherical(direction > 0 ? segment.to : segment.from);
+          listener.point(point[0], point[1]);
+        }
+      }
+    }
+  }
+  function d3_geo_clipPolygonSort(a, b) {
+    a = a.x, b = b.x;
+    return a.index - b.index || a.t - b.t;
+  }
+  function d3_geo_clipPolygonDistance(a, b) {
+    var axb = d3_geo_cartesianCross(a, b);
+    return Math.atan2(Math.sqrt(d3_geo_cartesianDot(axb, axb)), d3_geo_cartesianDot(a, b));
+  }
   var d3_geo_clipExtentMAX = 1e9;
   d3.geo.clipExtent = function() {
     var x0, y0, x1, y1, stream, clip, clipExtent = {
@@ -3101,7 +3255,7 @@ d3 = function() {
               listener.lineEnd();
             }
             if (visible) {
-              d3_geo_clipPolygon(segments, compare, clipStartInside, interpolate, listener);
+              d3_geo_clipPolygonRejoin(segments, compare, clipStartInside, interpolate, listener);
             }
             listener.polygonEnd();
           }
@@ -3707,7 +3861,7 @@ d3 = function() {
     var project, rotate, projectRotate, projectResample = d3_geo_resample(function(x, y) {
       x = project(x, y);
       return [ x[0] * k + δx, δy - x[1] * k ];
-    }), k = 150, x = 480, y = 250, λ = 0, φ = 0, δλ = 0, δφ = 0, δγ = 0, δx, δy, preclip = d3_geo_clipAntimeridian, postclip = d3_identity, clipAngle = null, clipExtent = null, stream;
+    }), k = 150, x = 480, y = 250, λ = 0, φ = 0, δλ = 0, δφ = 0, δγ = 0, δx, δy, preclip = d3_geo_clipAntimeridian, postclip = d3_identity, clipAngle = null, clipPolygon = null, clipExtent = null, stream;
     function projection(point) {
       point = projectRotate(point[0] * d3_radians, point[1] * d3_radians);
       return [ point[0] * k + δx, δy - point[1] * k ];
@@ -3758,6 +3912,13 @@ d3 = function() {
       return reset();
     };
     d3.rebind(projection, projectResample, "precision");
+    projection.clipPolygon = function(_) {
+      if (!arguments.length) return clipPolygon;
+      clipAngle = null;
+      clipPolygon = _;
+      preclip = _ == null ? d3_geo_clipAntimeridian : d3_geo_clipPolygon(_);
+      return reset();
+    };
     function reset() {
       projectRotate = d3_geo_compose(rotate = d3_geo_rotation(δλ, δφ, δγ), project);
       var center = project(λ, φ);
@@ -3883,10 +4044,6 @@ d3 = function() {
     var angle = d3_acos(-a[1]);
     return ((-a[2] < 0 ? -angle : angle) + 2 * Math.PI - ε) % (2 * Math.PI);
   }
-  d3.geo.distance = function(a, b) {
-    var Δλ = (b[0] - a[0]) * d3_radians, φ0 = a[1] * d3_radians, φ1 = b[1] * d3_radians, sinΔλ = Math.sin(Δλ), cosΔλ = Math.cos(Δλ), sinφ0 = Math.sin(φ0), cosφ0 = Math.cos(φ0), sinφ1 = Math.sin(φ1), cosφ1 = Math.cos(φ1), t;
-    return Math.atan2(Math.sqrt((t = cosφ1 * sinΔλ) * t + (t = cosφ0 * sinφ1 - sinφ0 * cosφ1 * cosΔλ) * t), sinφ0 * sinφ1 + cosφ0 * cosφ1 * cosΔλ);
-  };
   d3.geo.graticule = function() {
     var x1, x0, X1, X0, y1, y0, Y1, Y0, dx = 10, dy = dx, DX = 90, DY = 360, x, y, X, Y, precision = 2.5;
     function graticule() {

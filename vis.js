@@ -27,7 +27,7 @@ var ractive = new Ractive({
         if (votes) votes.dispose();
         if (votesGroup) votesGroup.dispose();
 
-        votes = cf.dimension(function(d) { return d.properties; });
+        votes = cf.dimension(function(d) { return d; });
         votesGroup = votes.group().reduce(
           function (p, d) {
             if (tpp) {
@@ -42,6 +42,8 @@ var ractive = new Ractive({
             }
 
             if (informal) p.informal += d.properties.votes.party.Informal || 0;
+            var fe = featuresMap.get(d.id);
+            fe.style.fill = "white";
 
             return p;
           },
@@ -56,6 +58,9 @@ var ractive = new Ractive({
               p.pup -= d.properties.votes.party.PUP || 0;
               p.kap -= d.properties.votes.party.KAP || 0;
             }
+
+            var fe = featuresMap.get(d.id);
+            fe.style.fill = "black";
 
             if (informal) p.informal -= d.properties.votes.party.Informal || 0;
 
@@ -253,29 +258,10 @@ var ractive = new Ractive({
       d3.select("#map svg").append("g").attr("mask", "url(#voronoi)").selectAll("path.electorates").data(electorates.features).enter().append("path").attr("class", "electorates").attr("d", path);
       d3.select("#map svg").append("path").datum(mesh).attr("class", "outline").attr("d", path);
       featuresMap = d3.map();
-      features = cf.dimension(function(d) { return d; });
-      featuresGroup = features.group().reduce(
-        function (p, d) {
-          var fe = featuresMap.get(d.id);
-          fe.style.fill = "white";
-          fe.style.stroke = "white";
-          return p;
-        },
-        function (p, d) {
-          var fe = featuresMap.get(d.id);
-          fe.style.fill = "black";
-          fe.style.stroke = "black";
-          return p;
-        },
-        function () {
-          return {};
-        }
-      );
-      var f = map.selectAll("path").data(features.top(Infinity), function(d) { return d.id; });
+      var f = map.selectAll("path").data(votes.top(Infinity), function(d) { return d.id; });
       f.exit().remove();
       f.enter().append("path").attr("class", "land").attr("d", path);
       f.each(function(d) { featuresMap.set(d.id, this); });
-      featuresGroup.top(Infinity);
       dc._renderlet = function() {
 
 

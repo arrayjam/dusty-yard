@@ -208,6 +208,11 @@ var ractive = new Ractive({
               .crossfilter(cf)
               .key(function(d) { return d.properties.votes.tpp.labor; }));
 
+      d3.select("#coalition")
+        .call(percentageChart()
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.votes.tpp.coalition; }));
+
       d3.select("#year12")
         .call(percentageChart()
               .crossfilter(cf)
@@ -217,6 +222,16 @@ var ractive = new Ractive({
         .call(medianChart()
               .crossfilter(cf)
               .key(function(d) { return d.properties.demographics.median_age; }));
+
+      d3.select("#migrants")
+        .call(percentageChart()
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.demographics.migrants; }));
+
+      d3.select("#christians")
+        .call(percentageChart()
+              .crossfilter(cf)
+              .key(function(d) { return d.properties.demographics.christians; }));
 
 
 
